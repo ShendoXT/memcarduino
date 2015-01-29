@@ -1,0 +1,14 @@
+custom serial port speeds
+crc the card, the whole card, and nothing but the card
+instead of ignoring a bad read, add 128 bytes of null (or x00 if better)
+a coffee brewing function
+support for writing to memory card (most likely only a full card write, while frames are supported, its easier to just do a full mcr)
+make big realisation that .bin==.mcr and that both are the same
+add support to erase a card (easily just set ifile=/dev/null) //if its not obvious DONT DO THIS!!!!!
+make todo funnier
+better comments
+better readme
+better python script
+support for cards that are larger then a official ps1 (tecknically already possible, just not from command line)
+should run verification that a MemCARDuino is connected,and then a verify that a memcard is connected (again support is on the memcarduino, but my 1337 coding sckillz arnt aw3s0m enough)
+remove all crappy 1337 speak from todo
