@@ -1,36 +1,43 @@
+#MemCARDuino python interface
+#a simple command line tool for quick dumping of psx memory cards connected to a serially connected MemCARDuino project
+# made by Jason D'Amico on the 28/12/2014
+#use and modification of this script is allowed, if improved do send a copy back.
+#use at own risk, not my fault if burns down house or erases card (it shouldnt, but...)
 import time
 import serial
 import sys
 import array
 from struct import pack
 import getopt
-from sys import argv
+
+
 
 
 inputport = ""
 outputfile = ""
 rate = 38400
-try:
-    opts, args = getopt.getopt(argv, "hi:r:o:", ["iport=", "rate=", "ofile="])
-except getopt.GetoptError:
-    print''
-    print 'memcarduino.py -i <Serial Port> -o <outputfile> [-r <baudrate>]'
-    print 'use -h for help'
-    sys.exit(2)
+opts, args = getopt.getopt(sys.argv[1:], "hi:r:o:", ["iport=", "rate=", "ofile="])
 for opt, arg in opts:
+    print opt
+    print arg
     if opt == '-h':
-        print 'memcarduino.py -i <Serial Port> -o <outputfile>'
-        print '-i [--iport=] accepts COM port names, or for linux, file references (read: /dev/tty or others)'
-        print "-o[--ofile=] accepts both windows and linux file URI's,i hope"
+        print 'memcarduino.py <Serial Port>  <outputfile>'
+        print '<Serial Port> accepts COM port names, or for linux, file references (read: /dev/tty or others)'
+        print "<outputfile> accepts both windows and linux file URI's,i hope"
         print '-r [--rate=] sets baudrate on serial port (default 38400)'
         sys.exit()
-    elif opt in ("-i", "--iport"):
+    elif opt =="-i" :
         inputport = arg
-    elif opt in ("-o", "--ofile"):
+    elif opt=="--iport":
+        inputport = arg
+    elif opt =="-o":
+        outputfile = arg
+    elif opt == "--ofile":
         outputfile = arg
     elif opt in("-r", "--rate"):
         print "WARNING RATE SHOULD NOT BE CHANGED UNLESS NESSARY!!"
         rate = arg
+    
 if (inputport == ""):
         print 'Missing Serial Port, useage:'
         print 'memcarduino.py -i <Serial Port> -o <outputfile> [-r <baudrate>]'
@@ -42,23 +49,13 @@ if (outputfile == ""):
         print 'use -h for help'
         sys.exit()
 
-ser = serial.Serial(port=inputport, baudrate=rate)
+ser = serial.Serial(port=inputport, baudrate=rate,timeout=2)
 start = 0
-# for the ieterator to read all bytes of a file/memcard, set end to memory card size in bytes divided by 128
+#what to read of the memorycard, 0 to 1024 is the full 128kb of a offical sony memory card, if using 3rd party
+# that has higher capacity, take the capacity and divide it by 128, e.g 128kb/128==1kb==1024
 end = 1024
 
 
-# frankly im not sure whats this is for, probly the read memcard id code i never finished
-def Memread():
-    print "read Memcard ID"
-    a = ser.read(1)
-    b = ser.read(1)
-    c = ser.read(1)
-    d = ser.read(1)
-    e = ser.read(1)
-    f = ser.read(1)
-    g = ser.read(1)
-    h = ser.read(1)
 
 
 ser.close()
@@ -67,7 +64,7 @@ ser.open()  # sometimes when serial port is opened, the arduino resets,so open, 
 time.sleep(2)
 ser.isOpen()
 
-f = open(outputfile, 'w')  # open file in overwrite mode, no confirm on existing file
+
 
 
 # //Commands ripped streight from the arduino project to make coding easier
@@ -82,7 +79,27 @@ f = open(outputfile, 'w')  # open file in overwrite mode, no confirm on existing
 
 MCR = "\xA2"  # mcr read command, should be  followed by a verify memcard
 temp = ""
+print "running mcduino check"
+#start mcduino verify 
+ser.write("\xA0")
+temp=ser.read(6)
+if temp !="MCDINO":
+    print "mcduino communication error, expected MCDINO, got "+temp
+    sys.exit()
+#end mcduino verify
+print "passed mcduino check\nRunning mcr header check"
+#start mcr verify
+ser.write(MCR+"\x00" + chr(1))
+temp=ser.read(129)
+b = ser.read(1)
 
+if b!="\x47":
+    print"mc read failure, check connections"
+    sys.exit()
+print "passed header check"
+print "starting dump"
+f = open(outputfile, 'w')  # open file in overwrite mode, no confirm on existing file
+#start of hacky black magic, if you dont understand it, DONT TOUCH IT!
 for i in xrange(start, end):
 
     if (i <= 255):
@@ -95,16 +112,22 @@ for i in xrange(start, end):
     # conv to a array
     arry = array.array('B', hex_data)
     map(ord, hex_data)
+    # end of black magic
     ser.write(MCR)
     ser.write(hex_data[1])
     ser.write(hex_data[0])
     temp = ser.read(128)
-
-    a = ser.read(1)
+    ser.read(1)
     b = ser.read(1)
     if(b != "\x47"):
-        sys.stdout.write("BAD READ!")  # write to terminal, if your seeing this them memcard is not returning G
+        sys.stdout.write("BAD READ!")  # write to terminal, if your seeing this them memcard is not returning G (for good read)
+        #if issues are occuring after 256 it means the black magic is broken, and needs fixing, if its constantly returning from 0 onwards it means wiring issue 
+        sys.stdout.write(" at frame "+str(i)+"/"+str(end)+'\n')
+        sys.stdout.flush()
     else:
         f.write(temp)
+        sys.stdout.write("vaild")
+        sys.stdout.write(" at frame "+str(i)+"/"+str(end)+'\n')
+        sys.stdout.flush()
 f.close()
 ser.close()

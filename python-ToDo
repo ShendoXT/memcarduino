@@ -5,6 +5,7 @@ a coffee brewing function
 support for writing to memory card (most likely only a full card write, while frames are supported, its easier to just do a full mcr)
 make big realisation that .bin==.mcr and that both are the same
 add support to erase a card (easily just set ifile=/dev/null) //if its not obvious DONT DO THIS!!!!!
+add a man page for the script
 make todo funnier
 better comments
 better readme
