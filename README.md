@@ -54,27 +54,32 @@
      Read a frame of the card and verify the returned status byte.
      If it's 0x47 then card is connected. If it's 0xFF card is not connected.
 
+    All comments below are solely the opinion of TheBlueTroll, and as such should be taken very lightly 
+
     How to use the provided Improvised python interface
     ------------------------------------------
     The python script is a mashed together script designed to raw copy the memory card on a os that doesnt have
-    Win, Dows, Com, or other propietary nonsense. essentially a linux jerryrig to get your memory cards from the 
-    Physical world down to the virtual world,(use at own risk, might not work out of box).it doesnt take any arguments, 
-    and Spews forth the contents of the Memory card into stdout (which when invoked from the command line, is the command line.)
-    the best way to use it is to invoke it with a redirect to file:
-    			python memcarduino.py >memcard.bin
+    Win, Dows, Com, or other propietary nonsense. essentially a linux jerryrig (with the added bonus of being mostly OS inspecific) to get your memory cards from the 
+    Physical world down to the virtual world,(use at own risk, might not work out of box).
+ 
+    python memcarduino.py -i <Serial Port> -o <outputfile> [-r <baudrate>]
+
+    this requires a serial port (/dev/ttyACM0 for arduino uno's, /dev/ttyUSB for others, COM1-COM4 for windoze, and whatever for macs)
+    it also requires a specific output file.
+    changing the baudrate isnt recommended, but is available anyway (it does mean reporgraming the arduino...)
+
     given time, luck, and a vomit bag, you'll have a raw dump of your memory card.
 
     I Get A Error With The Python script, What do i Do?
     ------------------------------------------
     The Python script is not perfect, and is only provided as a convience instead of having to write your own,
     also try this thing called "READING", because most to all times it helps figure out the issue. 
-    e.g :"serial.serialutil.SerialException: could not open port /dev/ttyACM0: [Errno 2] No such file or directory: '/dev/ttyACM0'"
-    if you read it, its saying that when it tried to open the linux\unix serial port by the name of /dev/ttyACM0 (which is usually a arduino, can also be /dev/ttyUSB0, or other numbers)
-    it could not be found, or does not exist, the fix is to open up your text editing program of your preference and change at the top where it says
-		ser = serial.Serial(port='/dev/ttyACM0'
+    e.g :"serial.serialutil.SerialException: could not open port X : [Errno 2] No such file or directory: '/dev/ttyACM0'"
+    if you read it, its saying that when it tried to open the linux\unix\windoze\mac\ios\andriod(technically linux)\blackberry(god forbid) serial port by the name of /dev/ttyACM0 (which is usually a arduino, can also be /dev/ttyUSB0, or other numbers)
+    it could not be found, or does not exist, the fix is to double and triple check the serial port setting and make sure its set 
     to whatever your serial port is actually defined as. its that easy!
 
     'I can do a better job of that python script with 1 arm tied behind my back!', well good, feel free to actually
-    improve upon it, its what github is all about.
+    improve upon it, be sure to send a copy back.
     
 
