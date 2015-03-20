@@ -62,7 +62,7 @@
     Win, Dows, Com, or other propietary nonsense. essentially a linux jerryrig (with the added bonus of being mostly OS inspecific) to get your memory cards from the 
     Physical world down to the virtual world,(use at own risk, might not work out of box).
  
-    python memcarduino.py -i <Serial Port> -o <outputfile> [-r <baudrate>]
+    python memcarduino.py -p <Serial Port> -o <output file> OR -i <input file> [-r <baudrate>]
 
     this requires a serial port (/dev/ttyACM0 for arduino uno's, /dev/ttyUSB for others, COM1-COM4 for windoze, and whatever for macs)
     it also requires a specific output file.
