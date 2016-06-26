@@ -1,5 +1,5 @@
 /*  
-    Arduino PS1 Memory Card Reader - MemCARDuino, Shendo 2013
+    Arduino PS1 Memory Card Reader - MemCARDuino, Shendo 2013 - 2015
 
     Thanks to:
     Martin Korth of the NO$PSX - documented Memory Card protocol.
@@ -27,15 +27,12 @@
      
      1 DATA - Pin 12 on Arduino
      2 CMND - Pin 11 on Arduino
-     3 7.6V - 5V Pin on Arduino
+     3 7.6V - External 7.6V power (Only required for 3rd party cards)
      4 GND - GND Pin on Arduino
      5 3.6V - 5V Pin on Arduino
      6 ATT - Pin 10 on Arduino
      7 CLK - Pin 13 on Arduino
      8 ACK - Pin 2 on Arduino
-     
-     If your card still isn't readable and it's a 3rd party card,
-     you will need to supply it with 7.6 V extrenal power supply.
      
      Interfacing a MemCARDuino:
      ---------------------------
@@ -60,7 +57,7 @@
 
 //Device Firmware identifier
 #define IDENTIFIER "MCDINO"  //MemCARDuino
-#define VERSION 0x02         //Firmware version byte (Major.Minor)
+#define VERSION 0x03         //Firmware version byte (Major.Minor)
 
 //Commands
 #define GETID 0xA0          //Get identifier
@@ -84,6 +81,7 @@
 #define AckPin 2           //Acknowledge
 
 byte ReadByte = 0;
+volatile int state = HIGH;
 
 //Set up pins for communication
 void PinSetup()
@@ -106,72 +104,87 @@ void PinSetup()
   digitalWrite(AttPin, HIGH);
   digitalWrite(ClockPin, HIGH);
   digitalWrite(AckPin, HIGH);    //Activate pullup resistor
+
+  //Set up interrupt on pin 2 (INT.0) for Acknowledge signal
+  attachInterrupt(0, ACK, FALLING);
+}
+
+//Acknowledge routine
+void ACK()
+{
+  state = !state;
 }
 
 //Send a command to PlayStation port using SPI
-byte SendCommand(byte CommandByte, int Delay)
+byte SendCommand(byte CommandByte)
 {
-    SPDR = CommandByte;             // Start the transmission
-    while (!(SPSR & (1<<SPIF)))     // Wait for the end of the transmission
-    {
-    };
+    int Delay = 3000;               //Timeout
+    state = HIGH;                   //Set high state for ACK signal
+  
+    SPDR = CommandByte;             //Start the transmission
+    while (!(SPSR & (1<<SPIF)));     //Wait for the end of the transmission
     
-    //Wait for the ACK signal from the Memory Card for preset delay
-    while((PORTD & 4) > 0)
+    //Wait for the ACK signal from the Memory Card
+    while(state == HIGH)
     {
       Delay--;
       delayMicroseconds(1);
       if(Delay == 0)break;
     }
     
-  return SPDR;                    // return the received byte
+  return SPDR;                    //Return the received byte
 }
 
 //Read a frame from Memory Card and send it to serial port
-void ReadFrame(byte AddressMSB, byte AddressLSB)
+void ReadFrame(unsigned int Address)
 {
+  byte AddressMSB = Address & 0xFF;
+  byte AddressLSB = (Address >> 8) & 0xFF;
+
   //Activate device
   PORTB &= 0xFB;    //Set pin 10 (AttPin, LOW)
   
-  SendCommand(0x81, 500);      //Access Memory Card
-  SendCommand(0x52, 500);      //Send read command
-  SendCommand(0x00, 500);      //Memory Card ID1
-  SendCommand(0x00, 500);      //Memory Card ID2
-  SendCommand(AddressMSB, 500);      //Address MSB
-  SendCommand(AddressLSB, 500);      //Address LSB
-  SendCommand(0x00, 2800);      //Memory Card ACK1
-  SendCommand(0x00, 2800);      //Memory Card ACK2
-  SendCommand(0x00, 2800);      //Confirm MSB
-  SendCommand(0x00, 2800);      //Confirm LSB
+  SendCommand(0x81);      //Access Memory Card
+  SendCommand(0x52);      //Send read command
+  SendCommand(0x00);      //Memory Card ID1
+  SendCommand(0x00);      //Memory Card ID2
+  SendCommand(AddressMSB);      //Address MSB
+  SendCommand(AddressLSB);      //Address LSB
+  SendCommand(0x00);      //Memory Card ACK1
+  SendCommand(0x00);      //Memory Card ACK2
+  SendCommand(0x00);      //Confirm MSB
+  SendCommand(0x00);      //Confirm LSB
   
   //Get 128 byte data from the frame
   for (int i = 0; i < 128; i++)
   {
-    Serial.write(SendCommand(0x00, 150));
+    Serial.write(SendCommand(0x00));
   }
   
-  Serial.write(SendCommand(0x00, 500));      //Checksum (MSB xor LSB xor Data)
-  Serial.write(SendCommand(0x00, 500));      //Memory Card status byte
+  Serial.write(SendCommand(0x00));      //Checksum (MSB xor LSB xor Data)
+  Serial.write(SendCommand(0x00));      //Memory Card status byte
   
   //Deactivate device
   PORTB |= 4;    //Set pin 10 (AttPin, HIGH)
 }
 
 //Write a frame from the serial port to the Memory Card
-void WriteFrame(byte AddressMSB, byte AddressLSB)
+void WriteFrame(unsigned int Address)
 {
+  byte AddressMSB = Address & 0xFF;
+  byte AddressLSB = (Address >> 8) & 0xFF;
   byte ReadData[128];
   int DelayCounter = 30;
 
   //Activate device
   PORTB &= 0xFB;    //Set pin 10 (AttPin, LOW)
   
-  SendCommand(0x81, 300);      //Access Memory Card
-  SendCommand(0x57, 300);      //Send write command
-  SendCommand(0x00, 300);      //Memory Card ID1
-  SendCommand(0x00, 300);      //Memory Card ID2
-  SendCommand(AddressMSB, 300);      //Address MSB
-  SendCommand(AddressLSB, 300);      //Address LSB
+  SendCommand(0x81);      //Access Memory Card
+  SendCommand(0x57);      //Send write command
+  SendCommand(0x00);      //Memory Card ID1
+  SendCommand(0x00);      //Memory Card ID2
+  SendCommand(AddressMSB);      //Address MSB
+  SendCommand(AddressLSB);      //Address LSB
   
   //Copy 128 bytes from the serial input
   for (int i = 0; i < 128; i++)
@@ -189,13 +202,13 @@ void WriteFrame(byte AddressMSB, byte AddressLSB)
   //Write 128 byte data to the frame
   for (int i = 0; i < 128; i++)
   {
-    SendCommand(ReadData[i], 150);
+    SendCommand(ReadData[i]);
   }
   
-  SendCommand(Serial.read(), 200);      //Checksum (MSB xor LSB xor Data)
-  SendCommand(0x00, 200);      //Memory Card ACK1
-  SendCommand(0x00, 200);      //Memory Card ACK2
-  Serial.write(SendCommand(0x00, 200));      //Memory Card status byte
+  SendCommand(Serial.read());      //Checksum (MSB xor LSB xor Data)
+  SendCommand(0x00);      //Memory Card ACK1
+  SendCommand(0x00);      //Memory Card ACK2
+  Serial.write(SendCommand(0x00));      //Memory Card status byte
   
   //Deactivate device
   PORTB |= 4;    //Set pin 10 (AttPin, HIGH)
@@ -233,16 +246,13 @@ void loop()
         
       case MCREAD:
       delay(5);
-      ReadFrame(Serial.read(), Serial.read());
+      ReadFrame(Serial.read() | Serial.read() << 8);
         break;
         
       case MCWRITE:
       delay(5);
-      WriteFrame(Serial.read(), Serial.read());
+      WriteFrame(Serial.read() | Serial.read() << 8);
         break;
     }
   }
 }
-
-
-
