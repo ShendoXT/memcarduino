@@ -52,6 +52,13 @@ def test():
 	ser.isOpen()
 	
 	check_connection()
+def testFormat():
+	ser.close()
+	ser.open()		# sometimes when serial port is opened, the arduino resets,so open, then wait for it to reset, then continue on with the check
+	time.sleep(2)
+	ser.isOpen()
+	
+	#check_connection() #thows error when the first frame is erased, which format does
 
 def check_connection():
 	
@@ -161,39 +168,67 @@ def memcard_format():
 	print "formatting memory card...\n"
 	passed = 0
 	for i in xrange(start, end):
-
-		if (i <= 255):
-			ia = "\x00" + chr(i)
-		else:
-			ia = pack('H', i)
-			ia = ia[1] + ia[0]  # invert that crap on the cheap
-		# convert to a 2byte hex string, then decode
-		hex_data = ia
-		# conv to a array
-		arry = array.array('B', hex_data)
-		map(ord, hex_data)
-		# end of black magic
-		
-		data_block = "\x00"*128
-		chk = ''
-		chk = chr(ord(hex_data[1])^ord(hex_data[0])^int(ord("\x00")))
-		ser.write(MCW)
-		ser.write(hex_data[1])
-		ser.write(hex_data[0])
-		ser.write(data_block)
-		ser.write(chk)
-		b = ser.read(1)
-		if(b == "\x47"):
-			print "OK at frame "+str(i+1)+"/"+str(end)
-			passed += 1
-		elif(b == "\x4E"):
-			print "BAD CHECKSUM at frame "+str(i+1)+"/"+str(end)
-		elif(b == "\xFF"):
-			print "BAD SECTOR at frame "+str(i+1)+"/"+str(end)
-		else:
-			print "UNKNOWN ERROR at frame "+str(i+1)+"/"+str(end)   # WTF?
+		if (i==1):
+			#how about actually not blanking the identifier frame.
+			#instead, lets write it
+			hex_data="\x00"+"\x00"
+			data_block = "\x4D" + "\x43" #"MC"
+			data_block = data_block+"\x00"*126 #126 blanks
 			
-	result(passed)
+			#just copy pasted the write code here
+			chk = ''
+			chk = chr(ord(hex_data[1])^ord(hex_data[0])^int(ord("\x00")))
+			ser.write(MCW)
+			ser.write(hex_data[1])
+			ser.write(hex_data[0])
+			ser.write(data_block)
+			ser.write(chk)
+			b = ser.read(1)
+			if(b == "\x47"):
+				print "OK at frame "+str(i+1)+"/"+str(end)
+				passed += 1
+			elif(b == "\x4E"):
+				print "BAD CHECKSUM at frame "+str(i+1)+"/"+str(end)
+			elif(b == "\xFF"):
+				print "BAD SECTOR at frame "+str(i+1)+"/"+str(end)
+			else:
+				print "UNKNOWN ERROR at frame "+str(i+1)+"/"+str(end)   # WTF?
+				
+
+		else:
+
+			if (i <= 255):
+				ia = "\x00" + chr(i)
+			else:
+				ia = pack('H', i)
+				ia = ia[1] + ia[0]  # invert that crap on the cheap
+			# convert to a 2byte hex string, then decode
+			hex_data = ia
+			# conv to a array
+			arry = array.array('B', hex_data)
+			map(ord, hex_data)
+			# end of black magic
+			
+			data_block = "\x00"*128
+			chk = ''
+			chk = chr(ord(hex_data[1])^ord(hex_data[0])^int(ord("\x00")))
+			ser.write(MCW)
+			ser.write(hex_data[1])
+			ser.write(hex_data[0])
+			ser.write(data_block)
+			ser.write(chk)
+			b = ser.read(1)
+			if(b == "\x47"):
+				print "OK at frame "+str(i+1)+"/"+str(end)
+				passed += 1
+			elif(b == "\x4E"):
+				print "BAD CHECKSUM at frame "+str(i+1)+"/"+str(end)
+			elif(b == "\xFF"):
+				print "BAD SECTOR at frame "+str(i+1)+"/"+str(end)
+			else:
+				print "UNKNOWN ERROR at frame "+str(i+1)+"/"+str(end)   # WTF?
+				
+		result(passed)
 		
 def result(passed):
 	print "\n\n\n"
