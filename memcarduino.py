@@ -162,6 +162,7 @@ def memcard_write(file):
 	print "writing data to memory card...\n"
 	passed = 0
 	for i in xrange(start, end):
+		tstart = datetime.now()
 
 		if (i <= 255):
 			ia = "\x00" + chr(i)
@@ -179,20 +180,23 @@ def memcard_write(file):
 		chk = ''
 		chk = chr(ord(hex_data[1])^ord(hex_data[0])^int(ord(data_block[0])))
 		ser.write(MCW)
-		ser.write(hex_data[1])
 		ser.write(hex_data[0])
+		ser.write(hex_data[1])
 		ser.write(data_block)
 		ser.write(chk)
 		b = ser.read(1)
+		tend = datetime.now()
+		#tPrint=tend-tstart
+		tPrint="NotImplemented"
 		if(b == "\x47"):
-			print "OK at frame "+str(i+1)+"/"+str(end)+"  Address:"+ByteToHex(hex_data)+" TimeTaken:"+str(tPrint)
+			print "OK at frame "+str(i+1)+"/"+str(end)+"  Address:"+ByteToHex(hex_data)+"  CHECKSUM:"+ByteToHex(chk)+" TimeTaken:"+str(tPrint)
 			passed += 1
 		elif(b == "\x4E"):
-			print "BAD CHECKSUM at frame "+str(i+1)+"/"+str(end)+"  Address:"+ByteToHex(hex_data)+" TimeTaken:"+str(tPrint)
+			print "BAD CHECKSUM at frame "+str(i+1)+"/"+str(end)+"  Address:"+ByteToHex(hex_data)+"  CHECKSUM:"+ByteToHex(chk)+" TimeTaken:"+str(tPrint)+str(res)
 		elif(b == "\xFF"):
-			print "BAD SECTOR at frame "+str(i+1)+"/"+str(end)+"  Address:"+ByteToHex(hex_data)+" TimeTaken:"+str(tPrint)
+			print "BAD SECTOR at frame "+str(i+1)+"/"+str(end)+"  Address:"+ByteToHex(hex_data)+"  CHECKSUM:"+ByteToHex(chk)+" TimeTaken:"+str(tPrint)
 		else:
-			print "UNKNOWN ERROR at frame "+str(i+1)+"/"+str(end)+"  Address:"+ByteToHex(hex_data)+" TimeTaken:"+str(tPrint)   # WTF?
+			print "UNKNOWN ERROR at frame "+str(i+1)+"/"+str(end)+"  Address:"+ByteToHex(hex_data)+"  CHECKSUM:"+ByteToHex(chk)+" TimeTaken:"+str(tPrint)   # WTF?
 			
 	result(passed)
 	
@@ -201,22 +205,27 @@ def memcard_format():
 	print "formatting memory card...\n"
 	passed = 0
 	for i in xrange(start, end):
-		if (i==1):
+		tstart = datetime.now()
+		if (i==0):
+			
 			#how about actually not blanking the identifier frame.
 			#instead, lets write it
 			hex_data="\x00"+"\x00"
 			data_block = "\x4D" + "\x43" #"MC"
-			data_block = data_block+"\x00"*126 #126 blanks
+			data_block = data_block+"\x00"*125 #125 blanks
+			data_block = data_block+"\x0E" #checksum
 			
 			#just copy pasted the write code here
 			chk = ''
 			chk = chr(ord(hex_data[1])^ord(hex_data[0])^int(ord("\x00")))
 			ser.write(MCW)
-			ser.write(hex_data[1])
 			ser.write(hex_data[0])
+			ser.write(hex_data[1])
 			ser.write(data_block)
 			ser.write(chk)
 			b = ser.read(1)
+			tend = datetime.now()
+			tPrint=tend-tstart
 			if(b == "\x47"):
 				print "OK at frame "+str(i+1)+"/"+str(end)+"  Address:"+ByteToHex(hex_data)+" TimeTaken:"+str(tPrint)
 				passed += 1
@@ -226,10 +235,7 @@ def memcard_format():
 				print "BAD SECTOR at frame "+str(i+1)+"/"+str(end)+"  Address:"+ByteToHex(hex_data)+" TimeTaken:"+str(tPrint)
 			else:
 				print "UNKNOWN ERROR at frame "+str(i+1)+"/"+str(end)+"  Address:"+ByteToHex(hex_data)+" TimeTaken:"+str(tPrint)   # WTF?
-				
-
 		else:
-
 			if (i <= 255):
 				ia = "\x00" + chr(i)
 			else:
@@ -246,11 +252,13 @@ def memcard_format():
 			chk = ''
 			chk = chr(ord(hex_data[1])^ord(hex_data[0])^int(ord("\x00")))
 			ser.write(MCW)
-			ser.write(hex_data[1])
 			ser.write(hex_data[0])
+			ser.write(hex_data[1])
 			ser.write(data_block)
 			ser.write(chk)
 			b = ser.read(1)
+			tend = datetime.now()
+			tPrint=tend-tstart
 			if(b == "\x47"):
 				print "OK at frame "+str(i+1)+"/"+str(end)+"  Address:"+ByteToHex(hex_data)+" TimeTaken:"+str(tPrint)
 				passed += 1
@@ -261,7 +269,7 @@ def memcard_format():
 			else:
 				print "UNKNOWN ERROR at frame "+str(i+1)+"/"+str(end)+"  Address:"+ByteToHex(hex_data)+" TimeTaken:"+str(tPrint)   # WTF?
 				
-		result(passed)
+	result(passed)
 		
 def result(passed):
 	print "\n\n\n"
