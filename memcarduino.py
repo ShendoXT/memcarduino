@@ -12,6 +12,7 @@ import serial
 import sys
 import array
 from struct import pack
+from datetime import datetime
 import getopt
 
 global GID		# get identifier
@@ -34,6 +35,35 @@ GFV = "\xA1"
 MCR = "\xA2"
 MCW = "\xA3"
 MCID = "\xA4"
+
+#cus im lazy -TheBlueTroll
+#SRC: http://code.activestate.com/recipes/510399-byte-to-hex-and-hex-to-byte-string-conversion/
+"""
+HexByteConversion
+
+Convert a byte string to it's hex representation for output or visa versa.
+
+ByteToHex converts byte string "\xFF\xFE\x00\x01" to the string "FF FE 00 01"
+HexToByte converts string "FF FE 00 01" to the byte string "\xFF\xFE\x00\x01"
+"""
+
+#-------------------------------------------------------------------------------
+
+def ByteToHex( byteStr ):
+    """
+    Convert a byte string to it's hex string representation e.g. for output.
+    """
+    
+    # Uses list comprehension which is a fractionally faster implementation than
+    # the alternative, more readable, implementation below
+    #   
+    #    hex = []
+    #    for aChar in byteStr:
+    #        hex.append( "%02X " % ord( aChar ) )
+    #
+    #    return ''.join( hex ).strip()        
+
+    return ''.join( [ "%02X " % ord( x ) for x in byteStr ] ).strip()
 
 def help():
 	print "memcarduino usage:"
@@ -89,7 +119,7 @@ def memcard_read(file):
 	print "reading data from memory card...\n"
 	passed = 0
 	for i in xrange(start, end):
-
+		tstart = datetime.now()
 		if (i <= 255):
 			ia = "\x00" + chr(i)
 		else:
@@ -102,23 +132,26 @@ def memcard_read(file):
 		map(ord, hex_data)
 		# end of black magic
 		ser.write(MCR)
-		ser.write(hex_data[1])
 		ser.write(hex_data[0])
+		ser.write(hex_data[1])
+
 		temp = ser.read(block_size)
 		ser.read(1)
 		b = ser.read(1)
+		tend = datetime.now()
+		tPrint=tend-tstart
 		if(b == "\x47"):
 			f.write(temp)
-			print "OK at frame "+str(i+1)+"/"+str(end)
+			print "OK at frame "+str(i+1)+"/"+str(end)+"  Address:"+ByteToHex(hex_data)+" TimeTaken:"+str(tPrint)
 			passed += 1
 		elif(b == "\x4E"):
-			print "BAD CHECKSUM at frame "+str(i+1)+"/"+str(end)
+			print "BAD CHECKSUM at frame "+str(i+1)+"/"+str(end)+"  Address:"+ByteToHex(hex_data)+" TimeTaken:"+str(tPrint)
 			f.write("\x00"*128)
 		elif(b == "\xFF"):
-			print "BAD SECTOR at frame "+str(i+1)+"/"+str(end)
+			print "BAD SECTOR at frame "+str(i+1)+"/"+str(end)+"  Address:"+ByteToHex(hex_data)+" TimeTaken:"+str(tPrint)
 			f.write("\x00"*128)
 		else:
-			print "UNKNOWN ERROR at frame "+str(i+1)+"/"+str(end)   # WTF?
+			print "UNKNOWN ERROR at frame "+str(i+1)+"/"+str(end)+"  Address:"+ByteToHex(hex_data)+" TimeTaken:"+str(tPrint)  # WTF?
 			f.write("\x00"*128)
 		
 	result(passed)
@@ -152,14 +185,14 @@ def memcard_write(file):
 		ser.write(chk)
 		b = ser.read(1)
 		if(b == "\x47"):
-			print "OK at frame "+str(i+1)+"/"+str(end)
+			print "OK at frame "+str(i+1)+"/"+str(end)+"  Address:"+ByteToHex(hex_data)+" TimeTaken:"+str(tPrint)
 			passed += 1
 		elif(b == "\x4E"):
-			print "BAD CHECKSUM at frame "+str(i+1)+"/"+str(end)
+			print "BAD CHECKSUM at frame "+str(i+1)+"/"+str(end)+"  Address:"+ByteToHex(hex_data)+" TimeTaken:"+str(tPrint)
 		elif(b == "\xFF"):
-			print "BAD SECTOR at frame "+str(i+1)+"/"+str(end)
+			print "BAD SECTOR at frame "+str(i+1)+"/"+str(end)+"  Address:"+ByteToHex(hex_data)+" TimeTaken:"+str(tPrint)
 		else:
-			print "UNKNOWN ERROR at frame "+str(i+1)+"/"+str(end)   # WTF?
+			print "UNKNOWN ERROR at frame "+str(i+1)+"/"+str(end)+"  Address:"+ByteToHex(hex_data)+" TimeTaken:"+str(tPrint)   # WTF?
 			
 	result(passed)
 	
@@ -185,14 +218,14 @@ def memcard_format():
 			ser.write(chk)
 			b = ser.read(1)
 			if(b == "\x47"):
-				print "OK at frame "+str(i+1)+"/"+str(end)
+				print "OK at frame "+str(i+1)+"/"+str(end)+"  Address:"+ByteToHex(hex_data)+" TimeTaken:"+str(tPrint)
 				passed += 1
 			elif(b == "\x4E"):
-				print "BAD CHECKSUM at frame "+str(i+1)+"/"+str(end)
+				print "BAD CHECKSUM at frame "+str(i+1)+"/"+str(end)+"  Address:"+ByteToHex(hex_data)+" TimeTaken:"+str(tPrint)
 			elif(b == "\xFF"):
-				print "BAD SECTOR at frame "+str(i+1)+"/"+str(end)
+				print "BAD SECTOR at frame "+str(i+1)+"/"+str(end)+"  Address:"+ByteToHex(hex_data)+" TimeTaken:"+str(tPrint)
 			else:
-				print "UNKNOWN ERROR at frame "+str(i+1)+"/"+str(end)   # WTF?
+				print "UNKNOWN ERROR at frame "+str(i+1)+"/"+str(end)+"  Address:"+ByteToHex(hex_data)+" TimeTaken:"+str(tPrint)   # WTF?
 				
 
 		else:
@@ -219,14 +252,14 @@ def memcard_format():
 			ser.write(chk)
 			b = ser.read(1)
 			if(b == "\x47"):
-				print "OK at frame "+str(i+1)+"/"+str(end)
+				print "OK at frame "+str(i+1)+"/"+str(end)+"  Address:"+ByteToHex(hex_data)+" TimeTaken:"+str(tPrint)
 				passed += 1
 			elif(b == "\x4E"):
-				print "BAD CHECKSUM at frame "+str(i+1)+"/"+str(end)
+				print "BAD CHECKSUM at frame "+str(i+1)+"/"+str(end)+"  Address:"+ByteToHex(hex_data)+" TimeTaken:"+str(tPrint)
 			elif(b == "\xFF"):
-				print "BAD SECTOR at frame "+str(i+1)+"/"+str(end)
+				print "BAD SECTOR at frame "+str(i+1)+"/"+str(end)+"  Address:"+ByteToHex(hex_data)+" TimeTaken:"+str(tPrint)
 			else:
-				print "UNKNOWN ERROR at frame "+str(i+1)+"/"+str(end)   # WTF?
+				print "UNKNOWN ERROR at frame "+str(i+1)+"/"+str(end)+"  Address:"+ByteToHex(hex_data)+" TimeTaken:"+str(tPrint)   # WTF?
 				
 		result(passed)
 		
@@ -296,15 +329,28 @@ test()
 
 if mode == "WRITE":
 	f = open(file, 'rb')
+	tOpStart = datetime.now()
 	memcard_write(f)
+	tOpEnd = datetime.now()
 	f.close()
+	tOpDelta=tOpEnd-tOpStart
+	print "Total Time:"+str(tOpDelta)
 elif mode == "READ":
 	f = open(file, 'wb')
+	tOpStart = datetime.now()
 	memcard_read(f)
+	tOpEnd = datetime.now()
 	f.close()
+	tOpDelta=tOpEnd-tOpStart
+	print "Total Time:"+str(tOpDelta)
 elif mode == "FORMAT":
+	tOpStart = datetime.now()
 	memcard_format()
+	tOpEnd = datetime.now()
+	tOpDelta=tOpEnd-tOpStart
+	print "Total Time:"+str(tOpDelta)
 else:
 	print "warning: no operation selected"
 
 ser.close()
+
