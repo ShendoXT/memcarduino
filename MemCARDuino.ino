@@ -17,6 +17,8 @@
 #define GETVER 0xA1         //Get firmware version
 #define MCREAD 0xA2         //Memory Card Read (frame)
 #define MCWRITE 0xA3        //Memory Card Write (frame)
+#define MCSELECT1 0xA5      //Selects Memory Card if multimemory card enabled
+#define MCSELECT2 0xA6
 
 //Responses
 #define ERROR 0xE0         //Invalid command received (error)
@@ -29,9 +31,14 @@
 //Define pins
 #define DataPin 12         //Data
 #define CmdPin 11          //Command
-#define AttPin 10          //Attention (Select)
+int AttPin = 10;            //Attention (Select), Ignored if multimemory = "yes"
 #define ClockPin 13        //Clock
 #define AckPin 2           //Acknowledge
+
+//Experimental multimemory Card Support
+int multimemory = "yes";   //Change to yes to enable
+int AttPin1 = 10;          //Attention (Select) Memory Card 1
+int AttPin2 = 9;          //Attention (Select) Memory Card 2
 
 byte ReadByte = 0;
 volatile int state = HIGH;
@@ -103,7 +110,7 @@ void ReadFrame(unsigned int Address)
   CompatibleMode = false;
 
   //Activate device
-  PORTB &= 0xFB;    //Set pin 10 (AttPin, LOW)
+  digitalWrite(AttPin, LOW);    //Set pin 10 (AttPin, LOW)
 
   SendCommand(0x81, 500);      //Access Memory Card
   SendCommand(0x52, 500);      //Send read command
@@ -126,7 +133,7 @@ void ReadFrame(unsigned int Address)
   Serial.write(SendCommand(0x00, 500));      //Memory Card status byte
 
   //Deactivate device
-  PORTB |= 4;    //Set pin 10 (AttPin, HIGH)
+  digitalWrite(AttPin, HIGH);    //Set pin 10 (AttPin, HIGH)
 }
 
 //Write a frame from the serial port to the Memory Card
@@ -141,7 +148,7 @@ void WriteFrame(unsigned int Address)
   CompatibleMode = false;
 
   //Activate device
-  PORTB &= 0xFB;    //Set pin 10 (AttPin, LOW)
+  digitalWrite(AttPin, LOW);    //Set pin 10 (AttPin, LOW)
 
   SendCommand(0x81, 300);      //Access Memory Card
   SendCommand(0x57, 300);      //Send write command
@@ -175,7 +182,7 @@ void WriteFrame(unsigned int Address)
   Serial.write(SendCommand(0x00, 200)); //Memory Card status byte
 
   //Deactivate device
-  PORTB |= 4;    //Set pin 10 (AttPin, HIGH)
+  digitalWrite(AttPin, HIGH);    //Set pin 10 (AttPin, HIGH)
 }
 
 void setup()
@@ -183,6 +190,18 @@ void setup()
   //Set up serial communication
   Serial.begin(38400);
 
+  //Determines multimemory Card Mode
+  if(multimemory == "yes")
+  {
+    pinMode(AttPin1, OUTPUT);
+    pinMode(AttPin2, OUTPUT);
+    digitalWrite(AttPin1,HIGH);
+    digitalWrite(AttPin2,HIGH);
+    AttPin = AttPin1;
+  }
+  else if(multimemory = "no")
+  {
+  }
   //Set up pins
   PinSetup();
 }
@@ -216,6 +235,16 @@ void loop()
       case MCWRITE:
       delay(5);
       WriteFrame(Serial.read() | Serial.read() << 8);
+        break;
+        
+      case MCSELECT1:
+      delay(5);
+      AttPin = AttPin1;
+        break;
+
+      case MCSELECT2:
+      delay(5);
+      AttPin = AttPin2;
         break;
     }
   }
