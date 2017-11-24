@@ -20,6 +20,9 @@ global GFV		# get firmware version
 global MCR	 	# mcr read command, should be followed by a verify memcard
 global MCW		# mcr write command, should be followed by a verify memcard
 global MCID		# read mc identifier
+#didnt want to learn hex just to select a memory card
+global MCS1		# command to select memcard 1
+global MCS2		# command to select memcard 2
 
 global start		#first block to read from (default 0)
 global end			#number of blocks to read (default 1024)
@@ -35,6 +38,8 @@ GFV = "\xA1"
 MCR = "\xA2"
 MCW = "\xA3"
 MCID = "\xA4"
+MCS1 = "\xA5"
+MCS2 = "\xA6"
 
 #cus im lazy -TheBlueTroll
 #SRC: http://code.activestate.com/recipes/510399-byte-to-hex-and-hex-to-byte-string-conversion/
@@ -66,21 +71,24 @@ def ByteToHex( byteStr ):
     return ''.join( [ "%02X " % ord( x ) for x in byteStr ] ).strip()
 
 def help():
-	print "memcarduino usage:"
-	print "memcarduino.py -p,--port <serial port> , -r,--read <output file> OR -w,--write <input file> OR -f,--format , [-c,--capacity <capacity>] , [-b,--bitrate <bitrate:bps>]"
+	print "memcarduino usage:\n"
+	print "memcarduino.py -p,--port <serial port> , -r,--read <output file> OR -w,--write <input file> OR -f,--format , [-c,--capacity <capacity>] , [-b,--bitrate <bitrate:bps>] , [-s,--select <memorycard>]\n\n"
+	print "EX. memcarduino.py -p COM6 -r memorycard.mcr -s 1\n"
 	print "<serial port> accepts COM port names, or for linux, file references (/dev/tty[...] or others)"
 	print "<output file> read from memory card and save to file"
 	print "<input file> read from file and write to memory card (accepts both windows and linux file URI's)"
 	print "<capacyty> sets memory card capacity [blocks] *1 block = 128 B* (default 1024 blocks)"
 	print "<bitrate> sets bitrate on serial port (default 38400 bps)"
-	print "format command formats memorycard with all \\x00\n\n\n"
+	print "format command formats memorycard with all \\x00"
+	print "<memorycard> selects active memorycard (multimemory must be enabled on arduino)"
 
 def test():
 	ser.close()
 	ser.open()		# sometimes when serial port is opened, the arduino resets,so open, then wait for it to reset, then continue on with the check
 	time.sleep(2)
 	ser.isOpen()
-	
+	if MCS:
+		ser.write(MCS)
 	check_connection()
 def testFormat():
 	ser.close()
@@ -286,8 +294,9 @@ inputport = ""
 rate = 38400
 file = ""
 mode = ""
+MCS = ""
 
-opts, args = getopt.getopt(sys.argv[1:] , "hfp:r:w:c:b" , [ "help" , "format" , "port=" , "read=" , "write=" , "capacity=" , "bitrate="])
+opts, args = getopt.getopt(sys.argv[1:] , "hfp:r:w:c:bs:" , [ "help" , "format" , "port=" , "read=" , "write=" , "capacity=" , "bitrate=" , "select="])
 
 
 #OPTIONS CHECK
@@ -315,6 +324,12 @@ for opt, arg in opts:
 	elif opt in("-b", "--bitrate"):
 		print "warning: bitrate shuold not be changed unless necessary"
 		rate = arg
+	elif opt in("-s", "--select"):
+		memcard_select = arg
+		if memcard_select == "1":
+			MCS = MCS1
+		elif memcard_select == "2":
+			MCS = MCS2
 	else:
 		help()
 		sys.exit()
