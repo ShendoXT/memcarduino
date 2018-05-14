@@ -209,13 +209,13 @@ void loop()
         break;
 
       case MCREAD:
-      delay(5);
-      ReadFrame(Serial.read() | Serial.read() << 8);
+        delay(5);
+        ReadFrame(Serial.read() | Serial.read() << 8);
         break;
 
       case MCWRITE:
-      delay(5);
-      WriteFrame(Serial.read() | Serial.read() << 8);
+        delay(5);
+        WriteFrame(Serial.read() | Serial.read() << 8);
         break;
     }
   }

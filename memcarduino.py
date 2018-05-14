@@ -53,17 +53,17 @@ def ByteToHex( byteStr ):
     """
     Convert a byte string to it's hex string representation e.g. for output.
     """
-    
+
     # Uses list comprehension which is a fractionally faster implementation than
     # the alternative, more readable, implementation below
-    #   
+    #
     #    hex = []
     #    for aChar in byteStr:
     #        hex.append( "%02X " % ord( aChar ) )
     #
-    #    return ''.join( hex ).strip()        
+    #    return ''.join( hex ).strip()
 
-    return ''.join( [ "%02X " % ord( x ) for x in byteStr ] ).strip()
+    return ''.join( [ "%02X" % ord( x ) for x in byteStr ] ).strip()
 
 def help():
 	print "memcarduino usage:"
@@ -80,21 +80,21 @@ def test():
 	ser.open()		# sometimes when serial port is opened, the arduino resets,so open, then wait for it to reset, then continue on with the check
 	time.sleep(2)
 	ser.isOpen()
-	
+
 	check_connection()
 def testFormat():
 	ser.close()
 	ser.open()		# sometimes when serial port is opened, the arduino resets,so open, then wait for it to reset, then continue on with the check
 	time.sleep(2)
 	ser.isOpen()
-	
+
 	#check_connection() #thows error when the first frame is erased, which format does
 
 def check_connection():
-	
+
 	temp = ""
-	#print "running mcduino check"
-	#start mcduino verify 
+	print "running mcduino check"
+	#start mcduino verify
 
 	ser.write(GID)
 	temp=ser.read(6)
@@ -102,7 +102,7 @@ def check_connection():
 		print "error: mcduino communication error, got \""+temp + "\" as identifier (should be \"MCDINO\")\n\n"
 		sys.exit()
 	#end mcduino verify
-	##print "passed mcduino check\nRunning mcr header check"
+	print "passed mcduino check\nRunning mcr header check"
 	#start mcr verify
 	ser.write(MCR + "\x00" + chr(1))
 	temp=ser.read(129)
@@ -111,8 +111,8 @@ def check_connection():
 	if b!="\x47":
 		print"error: mc read failure, check connections\n\n"
 		sys.exit()
-	#print "passed header check"
-	
+	print "passed header check"
+
 def memcard_read(file):
 	f = file
 	temp = ""
@@ -153,7 +153,7 @@ def memcard_read(file):
 		else:
 			print "UNKNOWN ERROR at frame "+str(i+1)+"/"+str(end)+"  Address:"+ByteToHex(hex_data)+" TimeTaken:"+str(tPrint)  # WTF?
 			f.write("\x00"*128)
-		
+
 	result(passed)
 
 def memcard_write(file):
@@ -162,6 +162,7 @@ def memcard_write(file):
 	print "writing data to memory card...\n"
 	passed = 0
 	for i in xrange(start, end):
+                time.sleep(0.3)
 		tstart = datetime.now()
 
 		if (i <= 255):
@@ -175,10 +176,15 @@ def memcard_write(file):
 		arry = array.array('B', hex_data)
 		map(ord, hex_data)
 		# end of black magic
-		
+
 		data_block = f.read(block_size)
-		chk = ''
-		chk = chr(ord(hex_data[1])^ord(hex_data[0])^int(ord(data_block[0])))
+                if len(data_block) < 128:
+                    print "data block size" + str(len(data_block))
+                    data_block = data_block + "\x00" * (128 - len(data_block))
+		chksum = ord(hex_data[1])^ord(hex_data[0])
+                for d in data_block:
+                    chksum = chksum^ord(d)
+                chk = chr(chksum)
 		ser.write(MCW)
 		ser.write(hex_data[0])
 		ser.write(hex_data[1])
@@ -187,34 +193,36 @@ def memcard_write(file):
 		b = ser.read(1)
 		tend = datetime.now()
 		#tPrint=tend-tstart
-		tPrint="NotImplemented"
+		#tPrint="NotImplemented"
+		tPrint=ByteToHex(data_block)
 		if(b == "\x47"):
 			print "OK at frame "+str(i+1)+"/"+str(end)+"  Address:"+ByteToHex(hex_data)+"  CHECKSUM:"+ByteToHex(chk)+" TimeTaken:"+str(tPrint)
 			passed += 1
 		elif(b == "\x4E"):
-			print "BAD CHECKSUM at frame "+str(i+1)+"/"+str(end)+"  Address:"+ByteToHex(hex_data)+"  CHECKSUM:"+ByteToHex(chk)+" TimeTaken:"+str(tPrint)+str(res)
+			print "BAD CHECKSUM at frame "+str(i+1)+"/"+str(end)+"  Address:"+ByteToHex(hex_data)+"  CHECKSUM:"+ByteToHex(chk)+" TimeTaken:"+str(tPrint)
 		elif(b == "\xFF"):
 			print "BAD SECTOR at frame "+str(i+1)+"/"+str(end)+"  Address:"+ByteToHex(hex_data)+"  CHECKSUM:"+ByteToHex(chk)+" TimeTaken:"+str(tPrint)
 		else:
 			print "UNKNOWN ERROR at frame "+str(i+1)+"/"+str(end)+"  Address:"+ByteToHex(hex_data)+"  CHECKSUM:"+ByteToHex(chk)+" TimeTaken:"+str(tPrint)   # WTF?
-			
+
 	result(passed)
-	
+
 def memcard_format():
 	temp = ""
 	print "formatting memory card...\n"
 	passed = 0
 	for i in xrange(start, end):
+                time.sleep(0.01)
 		tstart = datetime.now()
 		if (i==0):
-			
+
 			#how about actually not blanking the identifier frame.
 			#instead, lets write it
 			hex_data="\x00"+"\x00"
 			data_block = "\x4D" + "\x43" #"MC"
 			data_block = data_block+"\x00"*125 #125 blanks
 			data_block = data_block+"\x0E" #checksum
-			
+
 			#just copy pasted the write code here
 			chk = ''
 			chk = chr(ord(hex_data[1])^ord(hex_data[0])^int(ord("\x00")))
@@ -247,7 +255,7 @@ def memcard_format():
 			arry = array.array('B', hex_data)
 			map(ord, hex_data)
 			# end of black magic
-			
+
 			data_block = "\x00"*128
 			chk = ''
 			chk = chr(ord(hex_data[1])^ord(hex_data[0])^int(ord("\x00")))
@@ -268,9 +276,9 @@ def memcard_format():
 				print "BAD SECTOR at frame "+str(i+1)+"/"+str(end)+"  Address:"+ByteToHex(hex_data)+" TimeTaken:"+str(tPrint)
 			else:
 				print "UNKNOWN ERROR at frame "+str(i+1)+"/"+str(end)+"  Address:"+ByteToHex(hex_data)+" TimeTaken:"+str(tPrint)   # WTF?
-				
+
 	result(passed)
-		
+
 def result(passed):
 	print "\n\n\n"
 	if(passed == end):
@@ -311,10 +319,10 @@ for opt, arg in opts:
 		file = arg
 		mode = "WRITE"
 	elif opt in ("-c" , "--capacity"):
-		end = arg
+		end = int(arg)
 	elif opt in("-b", "--bitrate"):
 		print "warning: bitrate shuold not be changed unless necessary"
-		rate = arg
+		rate = int(arg)
 	else:
 		help()
 		sys.exit()
