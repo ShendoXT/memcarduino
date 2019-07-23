@@ -58,7 +58,6 @@ This requires a serial port (/dev/ttyACM0 for Arduino uno's, /dev/ttyUSBX for ot
 Changing the baudrate isn't recommended, but is available anyway (it does mean changing the Arduino code manually...)
 
 ## Python TODO:
-* Memory Card CRC function
 * Read/Write individual saves
 * Add a man page for the script
 * Refine comments, readme and script
