@@ -43,7 +43,12 @@ If it's 0x47 then card is connected. If it's 0xFF card is not connected.
 
 # Python interface:
 The python script is designed to raw copy the Memory Card data to PC and vice versa.    
-**Note:** As ususal, use at your own risk, it might not work out of the box.    
+**Note:** As ususal, use at your own risk, it might not work out of the box.
+
+# Python Interface for Python3:
+If you want to use Python 3, please use memarduino_py3.py
+The new script memarduino_py3.py is a simple modification of memarduino.py for Python3.
+**Note:** As usual, use at your own risk, it might not work out of the box.
 
 ## Usage
     memcarduino.py -p,--port <serial port> , -r,--read <output file> OR -w,--write <input file> OR -f,--format , [-c,--capacity <capacity>] , [-b,--bitrate <bitrate:bps>]
