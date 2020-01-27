@@ -42,10 +42,15 @@ Read a frame from the card and verify the returned status byte.
 If it's 0x47 then card is connected. If it's 0xFF card is not connected.    
 
 # Python interface:
-The python script is designed to raw copy the Memory Card data to PC and vice versa.    
-**Note:** As ususal, use at your own risk, it might not work out of the box.    
+Two python scripts are designed to raw copy the Memory Card data to PC and vice versa.
+memcarduino.py is Py2 Script
+memcarduino_py3.py is Py3 Script    
+**Note:** As usual, use at your own risk, it might not work out of the box.    
 
 ## Usage
+First install pyserial 
+    pip install pyserial
+For Python 2    
     memcarduino.py -p,--port <serial port> , -r,--read <output file> OR -w,--write <input file> OR -f,--format , [-c,--capacity <capacity>] , [-b,--bitrate <bitrate:bps>]
 
     <serial port> accepts COM port names, or for linux, file references (/dev/tty[...] or others)
@@ -53,6 +58,15 @@ The python script is designed to raw copy the Memory Card data to PC and vice ve
     <input file> read from file and write to memory card (accepts both windows and linux file URI's)
     <capacyty> sets memory card capacity [blocks] *1 block = 128 B* (default 1024 blocks)
     <bitrate> sets bitrate on serial port (default 38400 bps)
+For Python 3
+    memcarduino_py3.py -p,--port <serial port> , -r,--read <output file> OR -w,--write <input file> OR -f,--format , [-c,--capacity <capacity>] , [-b,--bitrate <bitrate:bps>]
+
+    <serial port> accepts COM port names, or for linux, file references (/dev/tty[...] or others)
+    <output file> read from memory card and save to file
+    <input file> read from file and write to memory card (accepts both windows and linux file URI's)
+    <capacyty> sets memory card capacity [blocks] *1 block = 128 B* (default 1024 blocks)
+    <bitrate> sets bitrate on serial port (default 38400 bps)
+
 
 This requires a serial port (/dev/ttyACM0 for Arduino uno's, /dev/ttyUSBX for others, COMX for Windows, and various for macOS) it also requires a specific output file.
 Changing the baudrate isn't recommended, but is available anyway (it does mean changing the Arduino code manually...)
