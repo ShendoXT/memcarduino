@@ -5,15 +5,17 @@
   Compatible with Arduino/Genuino Uno, Duemilanove, Diecimila, Nano, Mini,
   basically any board with ATmega168/P or ATmega328/P.
 
-  Also compatible with Arduino Mega 2560 (and probably other ATMega2560 based boards)
+
+THIS IS THE FIXED COMMIT FOR 328/P variants of arduino (Like Uno, Nano v3)
+The latest commit made by krzys-h  broke the compatibility with the 328/P mcu
 */
 
-#include <Arduino.h>
-#include <SPI.h>
+
+#include "Arduino.h"
 
 //Device Firmware identifier
 #define IDENTIFIER "MCDINO"  //MemCARDuino
-#define VERSION 0x04         //Firmware version byte (Major.Minor)
+#define VERSION 0x05         //Firmware version byte (Major.Minor). Same as the 0x04 version made by Shendo
 
 //Commands
 #define GETID 0xA0          //Get identifier
@@ -30,25 +32,11 @@
 //0xFF - BadSector
 
 //Define pins
-// If you are changing this for another board, note that:
-// DataPin must be the MISO SPI pin
-// CmdPin must be the MOSI SPI pin
-// AttPin should be the SS SPI pin (but if you change it make sure to set the real SS SPI is set to output, otherwise you may run into trouble)
-// ClockPin must be the SCK SPI pin
-// AckPin must be the pin attached to INT0
-#ifdef ARDUINO_AVR_MEGA2560
-#define DataPin 50         //Data
-#define CmdPin 51          //Command
-#define AttPin 53          //Attention (Select)
-#define ClockPin 52        //Clock
-#define AckPin 2           //Acknowledge
-#else
 #define DataPin 12         //Data
 #define CmdPin 11          //Command
 #define AttPin 10          //Attention (Select)
 #define ClockPin 13        //Clock
 #define AckPin 2           //Acknowledge
-#endif
 
 byte ReadByte = 0;
 volatile int state = HIGH;
@@ -64,6 +52,11 @@ void PinSetup()
   pinMode(AttPin, OUTPUT);
   pinMode(ClockPin, OUTPUT);
   pinMode(AckPin, INPUT);
+
+  //Set up SPI on Arduino (250 kHz, clock active when low, reading on falling edge of the clock)
+  SPCR = 0x7F;
+  clr=SPSR;
+  clr=SPDR;
 
   digitalWrite(DataPin, HIGH);    //Activate pullup resistor
   digitalWrite(CmdPin, LOW);
@@ -87,7 +80,8 @@ byte SendCommand(byte CommandByte, int Delay)
     if(!CompatibleMode) Delay = 3000;   //Timeout
     state = HIGH;                       //Set high state for ACK signal
 
-    uint8_t data = SPI.transfer(CommandByte);
+    SPDR = CommandByte;                 //Start the transmission
+    while (!(SPSR & (1<<SPIF)));        //Wait for the end of the transmission
 
     //Wait for the ACK signal from the Memory Card
     while(state == HIGH)
@@ -101,7 +95,7 @@ byte SendCommand(byte CommandByte, int Delay)
       }
     }
 
-  return data;                    //Return the received byte
+  return SPDR;                    //Return the received byte
 }
 
 //Read a frame from Memory Card and send it to serial port
@@ -114,8 +108,7 @@ void ReadFrame(unsigned int Address)
   CompatibleMode = false;
 
   //Activate device
-  digitalWrite(AttPin, LOW);
-  SPI.beginTransaction(SPISettings(250000, LSBFIRST, SPI_MODE3));
+  PORTB &= 0xFB;    //Set pin 10 (AttPin, LOW)
 
   SendCommand(0x81, 500);      //Access Memory Card
   SendCommand(0x52, 500);      //Send read command
@@ -138,8 +131,7 @@ void ReadFrame(unsigned int Address)
   Serial.write(SendCommand(0x00, 500));      //Memory Card status byte
 
   //Deactivate device
-  digitalWrite(AttPin, HIGH);
-  SPI.endTransaction();
+  PORTB |= 4;    //Set pin 10 (AttPin, HIGH)
 }
 
 //Write a frame from the serial port to the Memory Card
@@ -154,8 +146,7 @@ void WriteFrame(unsigned int Address)
   CompatibleMode = false;
 
   //Activate device
-  digitalWrite(AttPin, LOW);
-  SPI.beginTransaction(SPISettings(250000, LSBFIRST, SPI_MODE3));
+  PORTB &= 0xFB;    //Set pin 10 (AttPin, LOW)
 
   SendCommand(0x81, 300);      //Access Memory Card
   SendCommand(0x57, 300);      //Send write command
@@ -189,8 +180,7 @@ void WriteFrame(unsigned int Address)
   Serial.write(SendCommand(0x00, 200)); //Memory Card status byte
 
   //Deactivate device
-  digitalWrite(AttPin, HIGH);
-  SPI.endTransaction();
+  PORTB |= 4;    //Set pin 10 (AttPin, HIGH)
 }
 
 void setup()
