@@ -11,14 +11,18 @@
     |_ _|_ _ _|_ _ _|
      1 2 3 4 5 6 7 8
 
-1. DATA - Pin 12 on Arduino
-2. CMND - Pin 11 on Arduino
-3. 7.6V - External 7.6V power (only required for 3rd party cards and knockoffs)
-4. GND - GND Pin on Arduino
-5. 3.6V - 5V pin with a voltage divider to 3.6V
-6. ATT - Pin 10 on Arduino
-7. CLK - Pin 13 on Arduino
-8. ACK - Pin 2 on Arduino
+MC 1: DATA - D12 on Arduino<br>
+MC 2: CMND - D11 on Arduino<br>
+MC 3: 7.6V - External 7.6V power (only required for 3rd party cards and knockoffs)<br>
+MC 4: GND - GND Pin on Arduino<br>
+MC 5: 3.6V - 5V/3.3V Pin on Arduino<br>
+MC 6: ATT - D10 on Arduino<br>
+MC 7: CLK - D13 on Arduino<br>
+MC 8: ACK - D2 on Arduino<br>
+
+# Warning:
+PS1 MemoryCard is a 3.6V device but (old) Arduino uses 5V logic.<br>That may shorten lifespan of your MemoryCard or damage it permanently.<br>
+It is recommended to use 3.3V Arduino devices to avoid any damage to your MemoryCard.
 
 ## Reading save from a PC:
 To read saves from the Memory Card to your PC use [MemcardRex](http://shendosoft.blogspot.com/2014/01/memcardrex-18-released.html) if you are using Windows.   
