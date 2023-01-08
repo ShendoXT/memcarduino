@@ -1,6 +1,6 @@
 # MemCARDuino
 ### Arduino PlayStation 1 Memory Card reader
-![memcarduino](https://raw.githubusercontent.com/ShendoXT/memcarduino/master/images/memcarduino.png)
+![memcarduino](https://github.com/ShendoXT/memcarduino/blob/master/Images/memcarduino.jpg)
 
 ## Supported platforms:
 * Arduino Uno, Duemilanove, Diecimila, Nano, Mini, Fio (ATmega168/P or ATmega328/P)
