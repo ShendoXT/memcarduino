@@ -1,101 +1,179 @@
 /*
   MemCARDuino - Arduino PlayStation 1 Memory Card reader
-  Shendo 2013. - 2016.
+  Shendo 2013. - 2023.
 
-  Compatible with Arduino/Genuino Uno, Duemilanove, Diecimila, Nano, Mini,
-  basically any board with ATmega168/P or ATmega328/P.
-
-
-THIS IS THE FIXED COMMIT FOR 328/P variants of arduino (Like Uno, Nano v3)
-The latest commit made by krzys-h  broke the compatibility with the 328/P mcu
+  Compatible with:
+  * Arduino Uno, Duemilanove, Diecimila, Nano, Mini, Fio (ATmega168/P or ATmega328/P).
+  * Arduino Leonardo, Micro (ATmega32U4)
+  * Arduino Mega 2560
+  * Espressif ESP8266, ESP32
+  * Raspberry Pi Pico
 */
 
-
 #include "Arduino.h"
+#include <SPI.h>
 
 //Device Firmware identifier
-#define IDENTIFIER "MCDINO"  //MemCARDuino
-#define VERSION 0x05         //Firmware version byte (Major.Minor). Same as the 0x04 version made by Shendo
+#define IDENTIFIER "MCDINO"   //MemCARDuino
+#define VERSION 0x06          //Firmware version byte (Major.Minor).
 
 //Commands
-#define GETID 0xA0          //Get identifier
-#define GETVER 0xA1         //Get firmware version
-#define MCREAD 0xA2         //Memory Card Read (frame)
-#define MCWRITE 0xA3        //Memory Card Write (frame)
+#define GETID 0xA0            //Get identifier
+#define GETVER 0xA1           //Get firmware version
+#define MCREAD 0xA2           //Memory Card Read (frame)
+#define MCWRITE 0xA3          //Memory Card Write (frame)
 
 //Responses
-#define ERROR 0xE0         //Invalid command received (error)
+#define ERROR 0xE0            //Invalid command received (error)
 
 //Memory Card Responses
 //0x47 - Good
 //0x4E - BadChecksum
 //0xFF - BadSector
 
-//Define pins
-#define DataPin 12         //Data
-#define CmdPin 11          //Command
-#define AttPin 10          //Attention (Select)
-#define ClockPin 13        //Clock
-#define AckPin 2           //Acknowledge
+#ifndef ICACHE_RAM_ATTR
+  #define ICACHE_RAM_ATTR
+#endif
 
-byte ReadByte = 0;
+//Define pins for each known platform
+#ifdef ESP8266
+  #define DataPin   12          //MISO aka Data
+  #define AttPin    15          //Attention (SS)
+  #define AckPin    2           //Acknowledge
+#elif defined (ESP32)
+  #define DataPin   19
+  #define CmndPin   23
+  #define AttPin    5
+  #define ClockPin  18
+  #define AckPin    22
+#elif defined (ARDUINO_ARCH_MBED_RP2040)
+  #define DataPin   16
+  #define CmndPin   19
+  #define AttPin    17
+  #define ClockPin  18
+  #define AckPin    20
+#elif defined (ARDUINO_AVR_MEGA2560)
+  #define DataPin   50
+  #define AttPin    53
+  #define AckPin    2
+#else
+  #define DataPin   12
+  #define AttPin    10
+  #define AckPin    2
+#endif
+
 volatile int state = HIGH;
 bool CompatibleMode = false;
+byte ReadData[128];
 
 //Set up pins for communication
 void PinSetup()
 {
-  byte clr = 0;
-
-  pinMode(DataPin, INPUT);
-  pinMode(CmdPin, OUTPUT);
   pinMode(AttPin, OUTPUT);
-  pinMode(ClockPin, OUTPUT);
-  pinMode(AckPin, INPUT);
+  pinMode(AckPin, INPUT_PULLUP);
 
-  //Set up SPI on Arduino (250 kHz, clock active when low, reading on falling edge of the clock)
-  SPCR = 0x7F;
-  clr=SPSR;
-  clr=SPDR;
-
-  digitalWrite(DataPin, HIGH);    //Activate pullup resistor
-  digitalWrite(CmdPin, LOW);
   digitalWrite(AttPin, HIGH);
-  digitalWrite(ClockPin, HIGH);
-  digitalWrite(AckPin, HIGH);    //Activate pullup resistor
 
-  //Set up interrupt on pin 2 (INT.0) for Acknowledge signal
-  attachInterrupt(0, ACK, FALLING);
+#ifdef ARDUINO_ARCH_MBED_RP2040
+  pinMode(ClockPin, OUTPUT);
+  pinMode(CmndPin, OUTPUT);
+
+  digitalWrite(ClockPin, HIGH);
+  digitalWrite(CmndPin, HIGH);
+#else
+
+#if ESP32
+  SPI.begin(ClockPin, DataPin, CmndPin, -1);
+#else
+  SPI.begin();
+#endif
+  /* Memory Cards on PS1 are accessed at 250Khz but for the compatibility sake
+   * we will use 125Khz. For higher speeds external pull-ups are recommended.*/
+  SPI.beginTransaction(SPISettings(125000, LSBFIRST, SPI_MODE3));
+#endif
+
+  //Enable pullup on MISO Data line
+#if defined(__AVR_ATmega32U4__)
+  /* Arduino Leonardo and Micro do not have exposed ICSP pins
+   * so we have to enable pullup by referencing the port*/
+  PORTB = (1<<PB3);
+#elif defined(ESP8266)
+  /* ESP8266 needs to have each pin reconfigured for a specific purpose.
+   * If we just write pin as INPUT_PULLUP it will lose it's function as MISO line
+   * Therefore we need to adjust it as MISO with pullup...*/
+  PIN_PULLUP_EN(PERIPHS_IO_MUX_MTDI_U);
+#else
+  pinMode(DataPin, INPUT_PULLUP);
+#endif
+
+  /* Set up interrupt for ACK signal from the Memory Card.
+   *
+   * Should be FALLING because signal goes LOW for ~5uS during ACK 
+   * but ESP8266 for some reason doesn't register it.
+   * So since it goes HIGH anyway after that we will use RISING */
+  attachInterrupt(digitalPinToInterrupt(AckPin), ACK, RISING);
 }
 
 //Acknowledge routine
-void ACK()
+ICACHE_RAM_ATTR void ACK()
 {
   state = !state;
 }
 
-//Send a command to PlayStation port using SPI
-byte SendCommand(byte CommandByte, int Delay)
+//Software SPI bit bang, for devices without SPI or with SPI issues
+#ifdef ARDUINO_ARCH_MBED_RP2040
+byte SoftTransfer(byte data)
 {
-    if(!CompatibleMode) Delay = 3000;   //Timeout
-    state = HIGH;                       //Set high state for ACK signal
+  byte outData = 0;
 
-    SPDR = CommandByte;                 //Start the transmission
-    while (!(SPSR & (1<<SPIF)));        //Wait for the end of the transmission
+  for (int i = 0; i < 8; i++)  {
+        digitalWrite(CmndPin, !!(data & (1 << i)));
+
+        //Clock
+        digitalWrite(ClockPin, LOW);
+        delayMicroseconds(2);
+
+        //Sample input data
+        outData |= digitalRead(DataPin) << i;
+        digitalWrite(ClockPin, HIGH);
+        delayMicroseconds(2);
+  }
+
+  return outData;
+}
+#endif
+
+//Send a command to PlayStation port using SPI
+byte SendCommand(byte CommandByte, int Timeout, int Delay)
+{
+    if(!CompatibleMode) Timeout = 3000;
+    state = HIGH; //Set high state for ACK signal
+
+    //Delay for a bit (values simulating delays between real PS1 and Memory Card)
+    delayMicroseconds(Delay);
+
+    //Send data on the SPI bus
+#ifdef ARDUINO_ARCH_MBED_RP2040
+  /* Raspberry Pi Pico currently has some issues with SPI data corruption.
+   * So for now we are gonna do some bit banging, Pico has plenty of power to do it in software.*/
+    byte data = SoftTransfer(CommandByte);
+#else
+    byte data = SPI.transfer(CommandByte);
+#endif
 
     //Wait for the ACK signal from the Memory Card
     while(state == HIGH)
     {
-      Delay--;
+      Timeout--;
       delayMicroseconds(1);
-      if(Delay == 0){
+      if(Timeout == 0){
         //Timeout reached, card doesn't report ACK properly
         CompatibleMode = true;
         break;
       }
     }
 
-  return SPDR;                    //Return the received byte
+  return data;                    //Return the received byte
 }
 
 //Read a frame from Memory Card and send it to serial port
@@ -108,30 +186,31 @@ void ReadFrame(unsigned int Address)
   CompatibleMode = false;
 
   //Activate device
-  PORTB &= 0xFB;    //Set pin 10 (AttPin, LOW)
+  digitalWrite(AttPin, LOW);
+  delayMicroseconds(20);
 
-  SendCommand(0x81, 500);      //Access Memory Card
-  SendCommand(0x52, 500);      //Send read command
-  SendCommand(0x00, 500);      //Memory Card ID1
-  SendCommand(0x00, 500);      //Memory Card ID2
-  SendCommand(AddressMSB, 500);      //Address MSB
-  SendCommand(AddressLSB, 500);      //Address LSB
-  SendCommand(0x00, 2800);      //Memory Card ACK1
-  SendCommand(0x00, 2800);      //Memory Card ACK2
-  SendCommand(0x00, 2800);      //Confirm MSB
-  SendCommand(0x00, 2800);      //Confirm LSB
+  SendCommand(0x81, 500, 70);      //Access Memory Card
+  SendCommand(0x52, 500, 45);      //Send read command
+  SendCommand(0x00, 500, 45);      //Memory Card ID1
+  SendCommand(0x00, 500, 45);      //Memory Card ID2
+  SendCommand(AddressMSB, 500, 45);      //Address MSB
+  SendCommand(AddressLSB, 500, 45);      //Address LSB
+  SendCommand(0x00, 2800, 45);      //Memory Card ACK1
+  SendCommand(0x00, 2800, 0);      //Memory Card ACK2
+  SendCommand(0x00, 2800, 0);      //Confirm MSB
+  SendCommand(0x00, 2800, 0);      //Confirm LSB
 
   //Get 128 byte data from the frame
   for (int i = 0; i < 128; i++)
   {
-    Serial.write(SendCommand(0x00, 150));
+    Serial.write(SendCommand(0x00, 150, 0));
   }
 
-  Serial.write(SendCommand(0x00, 500));      //Checksum (MSB xor LSB xor Data)
-  Serial.write(SendCommand(0x00, 500));      //Memory Card status byte
+  Serial.write(SendCommand(0x00, 500, 0));      //Checksum (MSB xor LSB xor Data)
+  Serial.write(SendCommand(0x00, 0, 0));        //Memory Card status byte
 
   //Deactivate device
-  PORTB |= 4;    //Set pin 10 (AttPin, HIGH)
+  digitalWrite(AttPin, HIGH);
 }
 
 //Write a frame from the serial port to the Memory Card
@@ -139,21 +218,21 @@ void WriteFrame(unsigned int Address)
 {
   byte AddressMSB = Address & 0xFF;
   byte AddressLSB = (Address >> 8) & 0xFF;
-  byte ReadData[128];
   int DelayCounter = 30;
 
   //Use ACK detection mode by default
   CompatibleMode = false;
 
   //Activate device
-  PORTB &= 0xFB;    //Set pin 10 (AttPin, LOW)
+  digitalWrite(AttPin, LOW);
+  delayMicroseconds(20);
 
-  SendCommand(0x81, 300);      //Access Memory Card
-  SendCommand(0x57, 300);      //Send write command
-  SendCommand(0x00, 300);      //Memory Card ID1
-  SendCommand(0x00, 300);      //Memory Card ID2
-  SendCommand(AddressMSB, 300);      //Address MSB
-  SendCommand(AddressLSB, 300);      //Address LSB
+  SendCommand(0x81, 300, 45);      //Access Memory Card
+  SendCommand(0x57, 300, 45);      //Send write command
+  SendCommand(0x00, 300, 45);      //Memory Card ID1
+  SendCommand(0x00, 300, 45);      //Memory Card ID2
+  SendCommand(AddressMSB, 300, 45);      //Address MSB
+  SendCommand(AddressLSB, 300, 45);      //Address LSB
 
   //Copy 128 bytes from the serial input
   for (int i = 0; i < 128; i++)
@@ -171,22 +250,22 @@ void WriteFrame(unsigned int Address)
   //Write 128 byte data to the frame
   for (int i = 0; i < 128; i++)
   {
-    SendCommand(ReadData[i], 150);
+    SendCommand(ReadData[i], 150, 0);
   }
 
-  SendCommand(Serial.read(), 200);      //Checksum (MSB xor LSB xor Data)
-  SendCommand(0x00, 200);               //Memory Card ACK1
-  SendCommand(0x00, 200);               //Memory Card ACK2
-  Serial.write(SendCommand(0x00, 200)); //Memory Card status byte
+  SendCommand(Serial.read(), 200, 0);      //Checksum (MSB xor LSB xor Data)
+  SendCommand(0x00, 200, 0);               //Memory Card ACK1
+  SendCommand(0x00, 200, 0);               //Memory Card ACK2
+  Serial.write(SendCommand(0x00, 0, 0)); //Memory Card status byte
 
   //Deactivate device
-  PORTB |= 4;    //Set pin 10 (AttPin, HIGH)
+  digitalWrite(AttPin, HIGH);
 }
 
 void setup()
 {
   //Set up serial communication
-  Serial.begin(38400);
+  Serial.begin(115200);
 
   //Set up pins
   PinSetup();
@@ -197,9 +276,7 @@ void loop()
   //Listen for commands
   if(Serial.available() > 0)
   {
-    ReadByte = Serial.read();
-
-    switch(ReadByte)
+    switch(Serial.read())
     {
       default:
         Serial.write(ERROR);
@@ -214,13 +291,13 @@ void loop()
         break;
 
       case MCREAD:
-      delay(5);
-      ReadFrame(Serial.read() | Serial.read() << 8);
+        delay(5);
+        ReadFrame(Serial.read() | Serial.read() << 8);
         break;
 
       case MCWRITE:
-      delay(5);
-      WriteFrame(Serial.read() | Serial.read() << 8);
+        delay(5);
+        WriteFrame(Serial.read() | Serial.read() << 8);
         break;
     }
   }

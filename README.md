@@ -1,81 +1,59 @@
 # MemCARDuino
 ### Arduino PlayStation 1 Memory Card reader
+![memcarduino](https://raw.githubusercontent.com/ShendoXT/memcarduino/master/images/memcarduino.png)
 
-## Thanks to:
-* Martin Korth of the NO$PSX - documented Memory Card protocol.
-* Andrew J McCubbin - documented PS1 SPI interface.
+## Supported platforms:
+* Arduino Uno, Duemilanove, Diecimila, Nano, Mini, Fio (ATmega168/P or ATmega328/P)
+* Arduino Leonardo, Micro (ATmega32U4)
+* Arduino Mega 2560
+* Espressif [ESP8266](https://github.com/esp8266/Arduino), [ESP32](https://github.com/espressif/arduino-esp32) (requires additional board URL)
+* [Raspberry Pi Pico](https://github.com/earlephilhower/arduino-pico) (requires additional board URL)
 
+Various other boards can be supported if they have Arduino core available with SPI library with minimal or no editing to the sketch.
 ## Connecting a Memory Card to Arduino:
     Looking at the Memory Card:
     _________________
     |_ _|_ _ _|_ _ _|
      1 2 3 4 5 6 7 8
+     
+| Memory Card   | Uno, Nano, etc| Leonardo, Micro| Mega 2560 | ESP8266 | ESP32 | Pi Pico |
+| ------------- | ------------- |--| -- | -- | -- | -- |
+|1: Data | D12 | ICSP MISO | D50 | GPIO12 (D6)| GPIO19 | GP16
+|2: Command | D11 | ICSP MOSI | D52 | GPIO13 (D7)| GPIO23 | GP19
+|3: 7.6V | See 7.6V note | See 7.6V note | See 7.6V note | See 7.6V note | See 7.6V note | See 7.6V note
+|4: Gnd  | Gnd | Gnd | Gnd | Gnd | Gnd | Gnd
+|5: 3.6V | See VCC note | 3.3V | 3.3V | 3.3V | 3.3V | 3.3V
+|6: Attention  | D10 | D10 | D53 | GPIO15 (D8) | GPIO5 | GP17
+|7: Clock  | D13 | ICSP SCK | D52 | GPIO14 (D5) | GPIO18 | GP18
+|8: Acknowledge  | D2 | D2 | D2 | GPIO2 (D4) | GPIO22 | GP20
 
-MC 1: DATA - D12 on Arduino<br>
-MC 2: CMND - D11 on Arduino<br>
-MC 3: 7.6V - External 7.6V power (only required for 3rd party cards and knockoffs)<br>
-MC 4: GND - GND Pin on Arduino<br>
-MC 5: 3.6V - 5V/3.3V Pin on Arduino<br>
-MC 6: ATT - D10 on Arduino<br>
-MC 7: CLK - D13 on Arduino<br>
-MC 8: ACK - D2 on Arduino<br>
+**VCC note:** Memory Card is a 3.6V device. Connect it to either 3.3V provided by the board or use external 3.6 power supply.<br>
+Old Arduino uses 5V logic and it is not recommended. It may shorten lifespan of your MemoryCard or damage it permanently.
 
-# Warning:
-PS1 MemoryCard is a 3.6V device but (old) Arduino uses 5V logic.<br>That may shorten lifespan of your MemoryCard or damage it permanently.<br>
-It is recommended to use 3.3V Arduino devices to avoid any damage to your MemoryCard.
+**7.6V note:** This is only required for 3rd party Memory Cards and knockoffs.<br>
+Use external 7.6V power supply or if you are lucky you can get by with using 5V provided by the USB.
 
-## Reading save from a PC:
-To read saves from the Memory Card to your PC use [MemcardRex](https://github.com/ShendoXT/memcardrex/releases) if you are using Windows.   
-For other operating systems you can use a provided Python script.   
-If you are writing your own application the protocol is as follows:
+## Reading saves from a PC:
+To read saves from the Memory Card to your PC use [MemcardRex](https://github.com/ShendoXT/memcardrex/releases) if you are using Windows.<br>
+Make sure to use the latest version because MemCARDuino nuw runs at 115200bps while older releases used 38400bps.
 
-# Python interface:
-Two python scripts are designed to raw copy the Memory Card data to PC and vice versa.
-memcarduino.py is Python 2 Script<br>
-memcarduino_py3.py is Python 3 Script    
-**Note:** As usual, use at your own risk, it might not work out of the box.    
+For other operating systems you can use a provided Python script.
 
-## Usage
-### Python 2:<br>
-Before using install pyserial:<br>
-    pip install pyserial<br>
-    
-    python memcarduino.py -p,--port <serial port> , -r,--read <output file> OR -w,--write <input file> OR -f,--format , [-c,--capacity <capacity>] , [-b,--bitrate <bitrate:bps>]
+Before using install pyserial:
 
-    <serial port> accepts COM port names, or for linux, file references (/dev/tty[...] or others)
-    <output file> read from memory card and save to file
-    <input file> read from file and write to memory card (accepts both windows and linux file URI's)
-    <capacyty> sets memory card capacity [blocks] *1 block = 128 B* (default 1024 blocks)
-    <bitrate> sets bitrate on serial port (default 38400 bps)
-    
-### Python 3:<br>
-Before using install pyserial:<br>
-    pip3 install pyserial<br>
-    
-    python3 memcarduino_py3.py -p,--port <serial port> , -r,--read <output file> OR -w,--write <input file> OR -f,--format , [-c,--capacity <capacity>] , [-b,--bitrate <bitrate:bps>]
+    pip3 install pyserial
+Usage:
+
+    python3 memcarduino.py -p,--port <serial port> , -r,--read <output file> OR -w,--write <input file> OR -f,--format , [-c,--capacity <capacity>] , [-b,--bitrate <bitrate:bps>]
 
     <serial port> accepts COM port names, or for linux, file references (/dev/tty[...] or others)
     <output file> read from memory card and save to file
     <input file> read from file and write to memory card (accepts both windows and linux file URI's)
     <capacyty> sets memory card capacity [blocks] *1 block = 128 B* (default 1024 blocks)
-    <bitrate> sets bitrate on serial port (default 38400 bps)
+    <bitrate> sets bitrate on serial port (default 115200 bps)
 
+This requires a serial port (/dev/ttyACM0 for Arduino uno's, /dev/ttyUSBX for others, COMX for Windows, and various for macOS).
 
-This requires a serial port (/dev/ttyACM0 for Arduino uno's, /dev/ttyUSBX for others, COMX for Windows, and various for macOS) it also requires a specific output file.
-Changing the bitrate(baudrate) isn't recommended, but is available anyway (it does mean changing the Arduino code manually...)
-
-## Interfacing with MemCARDuino (for developers):
-Communication is done at **38400 bps**.    
-To check if the MemCARDuino is connected to the selected COM port send **GETID** command.    
-Device should respond with **IDENTIFIER**.    
-Optionally you can send a **GETVER** to get the version of the firmware.    
-
-To Read a 128byte frame send a **MCR** command with *MSB* byte and *LSB* byte of the frame you want to read.    
-MemCARDduino will respond with 128 byte frame data, [MSB xor LSB xor Data] and Memory Card status byte.    
-
-To Write a frame send a **MCW** command with *MSB* byte and *LSB* byte, 128 byte data and [MSB xor LSB xor Data].    
-MemCARDduino will respond with Memory Card status byte.    
-
-### Checking if Memory Card is connected:
-Read a frame from the card and verify the returned status byte.    
-If it's 0x47 then card is connected. If it's 0xFF card is not connected.    
+## Thanks to:
+* Martin Korth of the NO$PSX - documented Memory Card protocol.
+* Andrew J McCubbin - documented PS1 SPI interface.
