@@ -35,7 +35,7 @@ Use external 7.6V power supply or if you are lucky you can get by with using 5V 
 
 ## Reading saves from a PC:
 To read saves from the Memory Card to your PC use [MemcardRex](https://github.com/ShendoXT/memcardrex/releases) if you are using Windows.<br>
-Make sure to use the latest version because MemCARDuino nuw runs at 115200bps while older releases used 38400bps.
+Make sure to use the latest version because MemCARDuino now runs at 115200bps while older releases used 38400bps.
 
 For other operating systems you can use a provided Python script.
 
