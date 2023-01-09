@@ -1,20 +1,21 @@
-#### Interfacing with MemCARDuino:
+### Interfacing with MemCARDuino:
 
-|Commands|Data|Description|
-| -- | -- | -- |
-|GETID | 0xA0 | Get identifier
-|GETVER | 0xA1 | Get firmware version
-|MCREAD | 0xA2 | Memory Card Read (frame)
-|MCWRITE | 0xA3 | Memory Card Write (frame)
+|Commands|Data|Parameters|Description|Response|
+| -- | -- | -- | -- | -- |
+|GETID | 0xA0 | - | Get identifier | "MCDINO"
+|GETVER | 0xA1 | - | Get firmware version | Firmware version byte (Major.Minor).
+|MCR | 0xA2 | MSB, LSB | Memory Card Read (frame) | Data, XOR, Status
+|MCW | 0xA3 | MSB, LSB, data, XOR | Memory Card Write (frame) | Status
 
-|Responses|Data|Description|
+|Status|Data|Description|
 | -- | -- | -- |
 |ERROR | 0xE0 | Invalid command received (error)
 |GOOD | 0x47 | Operation successful
 |BAD_CHECKSUM | 0x4E | Data corruption occured
 |BAD_SECTOR | 0xFF | Outside of max sector range
 
-Communication is done at **115200 bps**.    
+Communication is done at **115200 bps**.
+
 To check if MemCARDuino is connected to the selected COM port send **GETID** command.    
 Device should respond with **IDENTIFIER**.    
 Optionally you can send a **GETVER** to get the version of the firmware.    
