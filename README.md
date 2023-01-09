@@ -10,6 +10,12 @@
 * [Raspberry Pi Pico](https://github.com/earlephilhower/arduino-pico) (requires additional board URL)
 
 Various other boards can be supported if they have Arduino core available with SPI library with minimal or no editing to the sketch.
+
+## Warning
+Some Arduino boards use 5V logic and are not recommended.
+Connecting it straight  may shorten lifespan of your MemoryCard or damage it permanently as it is a 3.6V device.
+Use a lever shifter for data lines and power the memory card with 3.6 power supply.
+
 ## Connecting a Memory Card to Arduino:
     Looking at the Memory Card:
     _________________
