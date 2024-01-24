@@ -25,7 +25,7 @@ Use a lever shifter for data lines and power the memory card with 3.6 power supp
 | Memory Card   | Uno, Nano, etc| Leonardo, Micro| Mega 2560 | ESP8266 | ESP32 | Pi Pico |
 | ------------- | ------------- |--| -- | -- | -- | -- |
 |1: Data | D12 | ICSP MISO | D50 | GPIO12 (D6)| GPIO19 | GP16
-|2: Command | D11 | ICSP MOSI | D52 | GPIO13 (D7)| GPIO23 | GP19
+|2: Command | D11 | ICSP MOSI | D51 | GPIO13 (D7)| GPIO23 | GP19
 |3: 7.6V | See 7.6V note | See 7.6V note | See 7.6V note | See 7.6V note | See 7.6V note | See 7.6V note
 |4: Gnd  | Gnd | Gnd | Gnd | Gnd | Gnd | Gnd
 |5: 3.6V | See VCC note | 3.3V | 3.3V | 3.3V | 3.3V | 3.3V
