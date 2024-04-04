@@ -1,6 +1,6 @@
 /*
   MemCARDuino - Arduino PlayStation 1 Memory Card reader
-  Shendo 2013. - 2023.
+  Shendo 2013. - 2024.
 
   Compatible with:
   * Arduino Uno, Duemilanove, Diecimila, Nano, Mini, Fio (ATmega168/P or ATmega328/P).
@@ -15,7 +15,7 @@
 
 //Device Firmware identifier
 #define IDENTIFIER "MCDINO"   //MemCARDuino
-#define VERSION 0x06          //Firmware version byte (Major.Minor).
+#define VERSION 0x07          //Firmware version byte (Major.Minor).
 
 //Commands
 #define GETID 0xA0            //Get identifier
@@ -112,6 +112,11 @@ void PinSetup()
    * but ESP8266 for some reason doesn't register it.
    * So since it goes HIGH anyway after that we will use RISING */
   attachInterrupt(digitalPinToInterrupt(AckPin), ACK, RISING);
+
+  //Pico needs to be reminded of the ack pin configuration...
+#ifdef ARDUINO_ARCH_MBED_RP2040
+  pinMode(AckPin, INPUT_PULLUP);
+#endif
 }
 
 //Acknowledge routine
@@ -207,7 +212,7 @@ void ReadFrame(unsigned int Address)
   }
 
   Serial.write(SendCommand(0x00, 500, 0));      //Checksum (MSB xor LSB xor Data)
-  Serial.write(SendCommand(0x00, 0, 0));        //Memory Card status byte
+  Serial.write(SendCommand(0x00, 500, 0));      //Memory Card status byte
 
   //Deactivate device
   digitalWrite(AttPin, HIGH);
