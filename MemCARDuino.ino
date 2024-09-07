@@ -319,7 +319,7 @@ void PSInfo(){
 void PSBios(byte partNum){
   byte paramSize = 0;
   byte dataSize = 0;
-  ushort address = partNum * 128;
+  unsigned short address = partNum * 128;
 
   //Activate device
   digitalWrite(AttPin, LOW);
