@@ -8,6 +8,12 @@
   * Arduino Mega 2560
   * Espressif ESP8266, ESP32
   * Raspberry Pi Pico
+
+  Notes on the SPI communication:
+    My tests have shown that most compatible form of comms is software based SPI bit bang method,
+    especially with PocketStations which are notoriously difficult to communicate with.
+    Downside is that it's the slowest form of data transfer, specially evident on old ATmegas.
+    So, any platform that has enough processing power will use soft SPI for improved compatibility.
 */
 
 #include "Arduino.h"
@@ -15,7 +21,7 @@
 
 //Device Firmware identifier
 #define IDENTIFIER "MCDINO"   //MemCARDuino
-#define VERSION 0x08          //Firmware version byte (Major.Minor).
+#define VERSION 0x09          //Firmware version byte (Major.Minor).
 
 //Commands
 #define GETID 0xA0            //Get identifier
@@ -48,9 +54,11 @@
 #endif
 
 //Define pins for each known platform
-#ifdef ESP8266
+#if defined (ESP8266)
   #define DataPin   12          //MISO aka Data
+  #define CmndPin   13          //MOSI aka Command
   #define AttPin    15          //Attention (SS)
+  #define ClockPin  14
   #define AckPin    2           //Acknowledge
 #elif defined (ESP32)
   #define DataPin   19
@@ -88,35 +96,23 @@ void PinSetup()
 
   digitalWrite(AttPin, HIGH);
 
-#ifdef ARDUINO_ARCH_MBED_RP2040
+  //Set up SPI
+#if defined (ARDUINO_ARCH_MBED_RP2040) || (ESP8266) || (ESP32)
   pinMode(ClockPin, OUTPUT);
   pinMode(CmndPin, OUTPUT);
 
   digitalWrite(ClockPin, HIGH);
   digitalWrite(CmndPin, HIGH);
 #else
-
-#if ESP32
-  SPI.begin(ClockPin, DataPin, CmndPin, -1);
-#else
   SPI.begin();
-#endif
-  /* Memory Cards on PS1 are accessed at 250Khz but for the compatibility sake
-   * we will use 125Khz. For higher speeds external pull-ups are recommended.*/
   SPI.beginTransaction(SPISettings(125000, LSBFIRST, SPI_MODE3));
-  //SPI.beginTransaction(SPISettings(250000, LSBFIRST, SPI_MODE3));
 #endif
 
   //Enable pullup on MISO Data line
-#if defined(__AVR_ATmega32U4__)
+#if defined (__AVR_ATmega32U4__)
   /* Arduino Leonardo and Micro do not have exposed ICSP pins
    * so we have to enable pullup by referencing the port*/
   PORTB = (1<<PB3);
-#elif defined(ESP8266)
-  /* ESP8266 needs to have each pin reconfigured for a specific purpose.
-   * If we just write pin as INPUT_PULLUP it will lose it's function as MISO line
-   * Therefore we need to adjust it as MISO with pullup...*/
-  PIN_PULLUP_EN(PERIPHS_IO_MUX_MTDI_U);
 #else
   pinMode(DataPin, INPUT_PULLUP);
 #endif
@@ -140,8 +136,7 @@ ICACHE_RAM_ATTR void ACK()
   state = !state;
 }
 
-//Software SPI bit bang, for devices without SPI or with SPI issues
-#ifdef ARDUINO_ARCH_MBED_RP2040
+//Software SPI bit bang, turned out to be the most compatible with PocketStations
 byte SoftTransfer(byte data)
 {
   byte outData = 0;
@@ -161,7 +156,6 @@ byte SoftTransfer(byte data)
 
   return outData;
 }
-#endif
 
 //Send a command to PlayStation port using SPI
 byte SendCommand(byte CommandByte, int Timeout, int Delay)
@@ -173,9 +167,7 @@ byte SendCommand(byte CommandByte, int Timeout, int Delay)
     delayMicroseconds(Delay);
 
     //Send data on the SPI bus
-#ifdef ARDUINO_ARCH_MBED_RP2040
-  /* Raspberry Pi Pico currently has some issues with SPI data corruption.
-   * So for now we are gonna do some bit banging, Pico has plenty of power to do it in software.*/
+#if defined (ARDUINO_ARCH_MBED_RP2040) || (ESP8266) || (ESP32)
     byte data = SoftTransfer(CommandByte);
 #else
     byte data = SPI.transfer(CommandByte);
