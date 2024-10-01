@@ -136,6 +136,7 @@ ICACHE_RAM_ATTR void ACK()
   state = !state;
 }
 
+#if defined (ARDUINO_ARCH_MBED_RP2040) || (ESP8266) || (ESP32)
 //Software SPI bit bang, turned out to be the most compatible with PocketStations
 byte SoftTransfer(byte data)
 {
@@ -156,6 +157,7 @@ byte SoftTransfer(byte data)
 
   return outData;
 }
+#endif
 
 //Send a command to PlayStation port using SPI
 byte SendCommand(byte CommandByte, int Timeout, int Delay)
