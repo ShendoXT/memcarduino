@@ -76,6 +76,12 @@
   #define DataPin   50
   #define AttPin    53
   #define AckPin    2
+#elif defined (ARDUINO_AVR_LARDU_328E)
+  #define DataPin   12
+  #define CmndPin   11
+  #define AttPin    10
+  #define ClockPin  13
+  #define AckPin    2
 #else
   #define DataPin   12
   #define AttPin    10
@@ -97,7 +103,7 @@ void PinSetup()
   digitalWrite(AttPin, HIGH);
 
   //Set up SPI
-#if defined (ARDUINO_ARCH_RP2040) || (ESP8266) || (ESP32)
+#if defined (ARDUINO_ARCH_RP2040) || (ESP8266) || (ESP32) || (ARDUINO_AVR_LARDU_328E)
   pinMode(ClockPin, OUTPUT);
   pinMode(CmndPin, OUTPUT);
 
@@ -136,7 +142,7 @@ ICACHE_RAM_ATTR void ACK()
   state = !state;
 }
 
-#if defined (ARDUINO_ARCH_RP2040) || (ESP8266) || (ESP32)
+#if defined (ARDUINO_ARCH_RP2040) || (ESP8266) || (ESP32) || (ARDUINO_AVR_LARDU_328E)
 //Software SPI bit bang, turned out to be the most compatible with PocketStations
 byte SoftTransfer(byte data)
 {
@@ -172,7 +178,7 @@ byte SendCommand(byte CommandByte, int Timeout, int Delay)
     }
 
     //Send data on the SPI bus
-#if defined (ARDUINO_ARCH_RP2040) || (ESP8266) || (ESP32)
+#if defined (ARDUINO_ARCH_RP2040) || (ESP8266) || (ESP32) || (ARDUINO_AVR_LARDU_328E)
     byte data = SoftTransfer(CommandByte);
 #else
     byte data = SPI.transfer(CommandByte);
