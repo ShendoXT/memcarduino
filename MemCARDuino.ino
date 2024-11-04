@@ -166,7 +166,10 @@ byte SendCommand(byte CommandByte, int Timeout, int Delay)
     state = HIGH; //Set high state for ACK signal
 
     //Delay for a bit (values simulating delays between real PS1 and Memory Card)
-    delayMicroseconds(Delay);
+    if (Delay > 0) 
+    {
+      delayMicroseconds(Delay);
+    }
 
     //Send data on the SPI bus
 #if defined (ARDUINO_ARCH_RP2040) || (ESP8266) || (ESP32)
