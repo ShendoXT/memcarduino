@@ -59,6 +59,12 @@ Usage:
     <capacyty> sets memory card capacity [blocks] *1 block = 128 B* (default 1024 blocks)
     <bitrate> sets bitrate on serial port (default 115200 bps)
 
+Pocketstation commands:
+
+    --psinfo (print info from pocketstation)
+    --psbios <output file> (dump bios from pocketstation)
+    --pstime (appy pc time to pocketstation)
+
 This requires a serial port (/dev/ttyACM0 for Arduino uno's, /dev/ttyUSBX for others, COMX for Windows, and various for macOS).
 
 ## Thanks to:
