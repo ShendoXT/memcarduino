@@ -8,6 +8,7 @@
 * Arduino Mega 2560
 * Espressif [ESP8266](https://github.com/esp8266/Arduino), [ESP32](https://github.com/espressif/arduino-esp32) (requires additional board URL)
 * [Raspberry Pi Pico](https://github.com/earlephilhower/arduino-pico) (requires additional board URL)
+* Logic Green [LGT8F328P](https://github.com/dbuezas/lgt8fx) (requires additional board URL)
 
 Various other boards can be supported if they have Arduino core available with SPI library with minimal or no editing to the sketch.
 
