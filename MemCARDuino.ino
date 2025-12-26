@@ -195,6 +195,7 @@ byte SendCommand(byte CommandByte, int Timeout, int Delay)
         break;
       }
     }
+  delayMicroseconds(30); // This extra delay makes it more stable and less likely to receive unknown error like 0x4b
 
   return data;                    //Return the received byte
 }
