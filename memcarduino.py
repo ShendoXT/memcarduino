@@ -168,30 +168,35 @@ def memcard_write(file):
 	print("writing data to memory card...\n")
 	passed = 0
 	for address in range(start, end):
-	#	tstart = datetime.now()
-		address_bytes = address.to_bytes(2,byteorder='big') # integer to bytearray(2,bigendian) example 1 --> b'\x00\x01
-		frame = str(address+1)
-		data_block = f.read(frame_size)
-		chk = b''
-		chk = address_bytes[1]^address_bytes[0]^XorElementByteArray(data_block)
-		ser.write(MCW)
-		ser.write(address_bytes[0].to_bytes(1, byteorder='big')) # bytearray is bytes but bytearray[i] is int
-		ser.write(address_bytes[1].to_bytes(1, byteorder='big')) # bytearray is bytes but bytearray[i] is int
-		ser.write(data_block)
-		ser.write(chk.to_bytes(1,byteorder='big'))	
-		b = ser.read(1)
-		#tend = datetime.now()
-		#tPrint=tend-tstart
-		tPrint="NotImplemented"
-		if(b == b"\x47"):
-			print("bytereceive:"+ ByteToHex(b) +"  OK at frame "+frame+"/"+str(end)+"  Address:"+ByteToHex(address_bytes)+"  CHECKSUM:"+ByteToHex(chk.to_bytes(1,byteorder='big'))+" TimeTaken:"+str(tPrint))
-			passed += 1
-		elif(b == b"\x4E"):
-			print("bytereceive:"+ ByteToHex(b) +"  BAD CHECKSUM at frame "+frame+"/"+str(end)+"  Address:"+ByteToHex(address_bytes)+"  CHECKSUM:"+ByteToHex(chk.to_bytes(1,byteorder='big'))+" TimeTaken:"+str(tPrint))
-		elif(b == b"\xFF"):
-			print("bytereceive:"+ ByteToHex(b) +"  BAD SECTOR at frame "+frame+"/"+str(end)+"  Address:"+ByteToHex(address_bytes)+"  CHECKSUM:"+ByteToHex(chk.to_bytes(1,byteorder='big'))+" TimeTaken:"+str(tPrint))
+		for _ in range(write_retry):
+		#	tstart = datetime.now()
+			address_bytes = address.to_bytes(2,byteorder='big') # integer to bytearray(2,bigendian) example 1 --> b'\x00\x01
+			frame = str(address+1)
+			data_block = f.read(frame_size)
+			chk = b''
+			chk = address_bytes[1]^address_bytes[0]^XorElementByteArray(data_block)
+			ser.write(MCW)
+			ser.write(address_bytes[0].to_bytes(1, byteorder='big')) # bytearray is bytes but bytearray[i] is int
+			ser.write(address_bytes[1].to_bytes(1, byteorder='big')) # bytearray is bytes but bytearray[i] is int
+			ser.write(data_block)
+			ser.write(chk.to_bytes(1,byteorder='big'))	
+			b = ser.read(1)
+			#tend = datetime.now()
+			#tPrint=tend-tstart
+			tPrint="NotImplemented"
+			if(b == b"\x47"):
+				print("bytereceive:"+ ByteToHex(b) +"  OK at frame "+frame+"/"+str(end)+"  Address:"+ByteToHex(address_bytes)+"  CHECKSUM:"+ByteToHex(chk.to_bytes(1,byteorder='big'))+" TimeTaken:"+str(tPrint))
+				passed += 1
+				break
+			elif(b == b"\x4E"):
+				print("bytereceive:"+ ByteToHex(b) +"  BAD CHECKSUM at frame "+frame+"/"+str(end)+"  Address:"+ByteToHex(address_bytes)+"  CHECKSUM:"+ByteToHex(chk.to_bytes(1,byteorder='big'))+" TimeTaken:"+str(tPrint))
+			elif(b == b"\xFF"):
+				print("bytereceive:"+ ByteToHex(b) +"  BAD SECTOR at frame "+frame+"/"+str(end)+"  Address:"+ByteToHex(address_bytes)+"  CHECKSUM:"+ByteToHex(chk.to_bytes(1,byteorder='big'))+" TimeTaken:"+str(tPrint))
+			else:
+				print ("bytereceive:"+ ByteToHex(b) +"  UNKNOWN ERROR at frame "+frame+"/"+str(end)+"  Address:"+ByteToHex(address_bytes)+"  CHECKSUM:"+ByteToHex(chk.to_bytes(1,byteorder='big'))+" TimeTaken:"+str(tPrint))   # WTF?
+			time.sleep(0.5)
 		else:
-			print ("bytereceive:"+ ByteToHex(b) +"  UNKNOWN ERROR at frame "+frame+"/"+str(end)+"  Address:"+ByteToHex(address_bytes)+"  CHECKSUM:"+ByteToHex(chk.to_bytes(1,byteorder='big'))+" TimeTaken:"+str(tPrint))   # WTF?
+			print("WRITE RETRY LIMIT REACHED at frame "+frame+"/"+str(end)+"  Address:"+ByteToHex(address_bytes)+"  CHECKSUM:"+ByteToHex(chk.to_bytes(1,byteorder='big'))+" TimeTaken:"+str(tPrint))
 	result(passed)
 	
 def memcard_format():
@@ -382,6 +387,7 @@ inputport = ""
 rate = 115200
 file = ""
 mode = ""
+write_retry = 3
 
 opts, args = getopt.getopt(sys.argv[1:] , "hfp:r:w:c:b" , [ "help" , "format" , "port=" , "read=" , "write=" , "capacity=" , "bitrate=", "psinfo", "psbios=", "pstime"])
 
