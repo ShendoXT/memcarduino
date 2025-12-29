@@ -180,7 +180,7 @@ def memcard_write(file):
 		ser.write(data_block)
 		ser.write(chk.to_bytes(1,byteorder='big'))	
 		b = ser.read(1)
-	    #tend = datetime.now()
+		#tend = datetime.now()
 		#tPrint=tend-tstart
 		tPrint="NotImplemented"
 		if(b == b"\x47"):
@@ -192,10 +192,6 @@ def memcard_write(file):
 			print("bytereceive:"+ ByteToHex(b) +"  BAD SECTOR at frame "+frame+"/"+str(end)+"  Address:"+ByteToHex(address_bytes)+"  CHECKSUM:"+ByteToHex(chk.to_bytes(1,byteorder='big'))+" TimeTaken:"+str(tPrint))
 		else:
 			print ("bytereceive:"+ ByteToHex(b) +"  UNKNOWN ERROR at frame "+frame+"/"+str(end)+"  Address:"+ByteToHex(address_bytes)+"  CHECKSUM:"+ByteToHex(chk.to_bytes(1,byteorder='big'))+" TimeTaken:"+str(tPrint))   # WTF?
-		
-		#this delay here is because of the pocketstation, if data is written too fast it's gonna crash
-		time.sleep(0.15)
-	
 	result(passed)
 	
 def memcard_format():
@@ -376,7 +372,7 @@ def result(passed):
 	if(passed == end):
 		print("SUCCESS")
 	else:
-		print(mode + " ERROR: "+str(1024-passed)+" failed\n")
+		print(mode + " ERROR: "+str(end-passed)+" failed\n")
 
 #MAIN VARIABLES
 start = 0
@@ -411,7 +407,7 @@ for opt, arg in opts:
 		file = arg
 		mode = "WRITE"
 	elif opt in ("-c" , "--capacity"):
-		end = arg
+		end = int(arg)
 	elif opt in("-b", "--bitrate"):
 		print("warning: bitrate should not be changed unless necessary")
 		rate = arg
