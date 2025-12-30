@@ -195,6 +195,7 @@ byte SendCommand(byte CommandByte, int Timeout, int Delay)
         break;
       }
     }
+    delayMicroseconds(20); // Extra delay for pocketstation. https://github.com/ShendoXT/memcarduino/pull/43
 
   return data;                    //Return the received byte
 }

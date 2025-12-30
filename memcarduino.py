@@ -15,6 +15,7 @@
 #	mr-fuji on 21/03/2015
 #	shendo on 01/07/2023 (switched to 115200 bps default)
 #	shendo on 08/11/2024 (added pocketstation commands)
+#   Evans Jahja on 30/12/2025 (removed waits and added retries for pocketstation)
 #use and modification of this script is allowed, if improved do send a copy back.
 #use at own risk, not my fault if burns down house or erases card (it shouldn't, but...)
 import time
@@ -62,105 +63,109 @@ def ByteToHex( byteStr ): # byte to hex, ex: b'\x0A' -> 0A
 def XorElementByteArray( byteStr):  # XOR of all elemment f Byte
 	result=0
 	for index in range(0, len(byteStr)):
-		 result=result^byteStr[index]
+		result=result^byteStr[index]
 	return result
 
 # Help Functions
 def help():
-    print("memcarduino usage:")
-    print("memcarduino.py -p,--port <serial port> , -r,--read <output file> OR -w,--write <input file> OR -f,--format OR --psinfo OR --pstime OR --psbios <output file>, [-c,--capacity <capacity>] , [-b,--bitrate <bitrate:bps>]")
-    print("<serial port> accepts COM port names, or for linux, file references (/dev/tty[...] or others)")
-    print("<output file> read from memory card and save to file")
-    print("<input file> read from file and write to memory card (accepts both windows and linux file URI's)")
-    print("<capacyty> sets memory card capacity [frames] *1 frame = 128 B* (default 1024 frames)")
-    print("<bitrate> sets bitrate on serial port (default 115200 bps)")
-    print("format command formats memorycard with all \\x00\n")
+	print("memcarduino usage:")
+	print("memcarduino.py -p,--port <serial port> , -r,--read <output file> OR -w,--write <input file> OR -f,--format OR --psinfo OR --pstime OR --psbios <output file>, [-c,--capacity <capacity>] , [-b,--bitrate <bitrate:bps>]")
+	print("<serial port> accepts COM port names, or for linux, file references (/dev/tty[...] or others)")
+	print("<output file> read from memory card and save to file")
+	print("<input file> read from file and write to memory card (accepts both windows and linux file URI's)")
+	print("<capacyty> sets memory card capacity [frames] *1 frame = 128 B* (default 1024 frames)")
+	print("<bitrate> sets bitrate on serial port (default 115200 bps)")
+	print("format command formats memorycard with all \\x00\n")
 
-    print("pocketstation commands:")
-    print("--psinfo (print info from pocketstation)")
-    print("--psbios <output file> (dump bios from pocketstation)")
-    print("--pstime (appy pc time to pocketstation)\n\n\n")
+	print("pocketstation commands:")
+	print("--psinfo (print info from pocketstation)")
+	print("--psbios <output file> (dump bios from pocketstation)")
+	print("--pstime (appy pc time to pocketstation)\n\n\n")
 
 # Tests Functions
 def test():
-    ser.close()
-    ser.open()		# sometimes when serial port is opened, the arduino resets,so open, then wait for it to reset, then continue on with the check
-    time.sleep(2)
-    ser.isOpen()
+	ser.close()
+	ser.open()		# sometimes when serial port is opened, the arduino resets,so open, then wait for it to reset, then continue on with the check
+	time.sleep(2)
+	ser.isOpen()
 	
-    check_connection()
+	check_connection()
 def testFormat():
-    ser.close()
-    ser.open()		# sometimes when serial port is opened, the arduino resets,so open, then wait for it to reset, then continue on with the check
-    time.sleep(2)
-    ser.is_open()
+	ser.close()
+	ser.open()		# sometimes when serial port is opened, the arduino resets,so open, then wait for it to reset, then continue on with the check
+	time.sleep(2)
+	ser.is_open()
 	
 	#check_connection() #throws error when the first frame is erased, which format does
 
 def check_connection():
-    temp = ""
-    print("running mcduino check")
-    #start mcduino verify 
-    ser.write(GID)
-    temp= ser.read(6)
-    if temp != b'MCDINO' :
-        print ("error: mcduino communication error, got")          
-        print (temp)
-        print ("\" as identifier (should be \"MCDINO\")\n\n")
-        sys.exit()
+	temp = ""
+	print("running mcduino check")
+	#start mcduino verify 
+	ser.write(GID)
+	temp= ser.read(6)
+	if temp != b'MCDINO' :
+		print ("error: mcduino communication error, got")		  
+		print (temp)
+		print ("\" as identifier (should be \"MCDINO\")\n\n")
+		sys.exit()
 
 	#do not check frame reading for pocketstation commands
-    if (mode == "PSINFO" or mode == "PSBIOS" or mode == "PSTIME"):
-        return
+	if (mode == "PSINFO" or mode == "PSBIOS" or mode == "PSTIME"):
+		return
 
 	#test first frame
-    ser.write(MCR + b"\x00\x01")
-    temp=ser.read(129)
-    print(temp)
-    b = ser.read(1)
-    print (b)
-    if (b != b'\x47'):
-        print("Response Byte is: \n")
-        print(b)
-        print("error: mc read failure, check connections\n\n")
-        sys.exit()
-    print ("")
+	ser.write(MCR + b"\x00\x01")
+	temp=ser.read(129)
+	print(temp)
+	b = ser.read(1)
+	print (b)
+	if (b != b'\x47'):
+		print("Response Byte is: \n")
+		print(b)
+		print("error: mc read failure, check connections\n\n")
+		sys.exit()
+	print ("")
 
 # Memory Card Functions	
 def memcard_read(file):
-    f = file
-    temp = ""
-    print("reading data from memory card...\n")
-    passed = 0
-    for address in range(start, end):
-        tstart = datetime.now()
-        address_bytes =  address.to_bytes(2,byteorder='big') # integer to bytearray(2,bigendian) example 1 --> b'\x00\x01
-        frame = str(address+1)
-        ser.write(MCR)
-        ser.write(address_bytes[0].to_bytes(1, byteorder='big')) # bytearray is bytes but bytearray[i] is int
-        ser.write(address_bytes[1].to_bytes(1, byteorder='big')) # bytearray is bytes but bytearray[i] is int
-        temp = ser.read(frame_size)
-        ser.read(1)
-        b = ser.read(1)
-        tend = datetime.now()
-        tPrint=tend-tstart
-        #str128zeros = "\x00"*128
-        #print(ByteToHex(b))
-        if(b == b'\x47'):
-            f.write(temp)
-            print("OK at frame "+frame+"/"+str(end)+"  Address:"+ByteToHex(address_bytes)+" TimeTaken:"+str(tPrint))
-            passed += 1
-        elif(b == b'\x4E') :
-            print("BAD CHECKSUM at frame "+frame+"/"+str(end)+"  Address:"+ByteToHex(address_bytes)+" TimeTaken:"+str(tPrint))
-            f.write(b"\x00"*128)
-        elif(b == b'\xFF'):
-            print("BAD SECTOR at frame "+frame+"/"+str(end)+"  Address:"+ByteToHex(address_bytes)+" TimeTaken:"+str(tPrint))
-            f.write(b"\x00"*128)
-        else:
-            print("UNKNOWN ERROR at frame "+frame+"/"+str(end)+"  Address:"+ByteToHex(address_bytes)+" TimeTaken:"+str(tPrint))  # WTF?
-            f.write(b"\x00"*128)                
+	f = file
+	temp = ""
+	print("reading data from memory card...\n")
+	passed = 0
+	for address in range(start, end):
+		while True:
+			tstart = datetime.now()
+			address_bytes =  address.to_bytes(2,byteorder='big') # integer to bytearray(2,bigendian) example 1 --> b'\x00\x01
+			frame = str(address+1)
+			ser.write(MCR)
+			ser.write(address_bytes[0].to_bytes(1, byteorder='big')) # bytearray is bytes but bytearray[i] is int
+			ser.write(address_bytes[1].to_bytes(1, byteorder='big')) # bytearray is bytes but bytearray[i] is int
+			temp = ser.read(frame_size)
+			ser.read(1)
+			b = ser.read(1)
+			tend = datetime.now()
+			tPrint=tend-tstart
+			#str128zeros = "\x00"*128
+			#print(ByteToHex(b))
+			if(b == b'\x47'):
+				f.write(temp)
+				print("OK at frame "+frame+"/"+str(end)+"  Address:"+ByteToHex(address_bytes)+" TimeTaken:"+str(tPrint))
+				passed += 1
+				break
+			elif(b == b'\x4E') :
+				print("BAD CHECKSUM at frame "+frame+"/"+str(end)+"  Address:"+ByteToHex(address_bytes)+" TimeTaken:"+str(tPrint))
+				f.write(b"\x00"*128)
+			elif(b == b'\xFF'):
+				print("BAD SECTOR at frame "+frame+"/"+str(end)+"  Address:"+ByteToHex(address_bytes)+" TimeTaken:"+str(tPrint))
+				f.write(b"\x00"*128)
+			else:
+				print("UNKNOWN ERROR at frame "+frame+"/"+str(end)+"  Address:"+ByteToHex(address_bytes)+" TimeTaken:"+str(tPrint))  # WTF?
+				f.write(b"\x00"*128)				
+			print("retrying frame "+frame+"/"+str(end)+"...\n")
+			time.sleep(0.5)
+	result(passed)
 
-    result(passed)
 
 def memcard_write(file):
 	f = file
@@ -168,34 +173,33 @@ def memcard_write(file):
 	print("writing data to memory card...\n")
 	passed = 0
 	for address in range(start, end):
-	#	tstart = datetime.now()
-		address_bytes = address.to_bytes(2,byteorder='big') # integer to bytearray(2,bigendian) example 1 --> b'\x00\x01
-		frame = str(address+1)
-		data_block = f.read(frame_size)
-		chk = b''
-		chk = address_bytes[1]^address_bytes[0]^XorElementByteArray(data_block)
-		ser.write(MCW)
-		ser.write(address_bytes[0].to_bytes(1, byteorder='big')) # bytearray is bytes but bytearray[i] is int
-		ser.write(address_bytes[1].to_bytes(1, byteorder='big')) # bytearray is bytes but bytearray[i] is int
-		ser.write(data_block)
-		ser.write(chk.to_bytes(1,byteorder='big'))	
-		b = ser.read(1)
-	    #tend = datetime.now()
-		#tPrint=tend-tstart
-		tPrint="NotImplemented"
-		if(b == b"\x47"):
-			print("bytereceive:"+ ByteToHex(b) +"  OK at frame "+frame+"/"+str(end)+"  Address:"+ByteToHex(address_bytes)+"  CHECKSUM:"+ByteToHex(chk.to_bytes(1,byteorder='big'))+" TimeTaken:"+str(tPrint))
-			passed += 1
-		elif(b == b"\x4E"):
-			print("bytereceive:"+ ByteToHex(b) +"  BAD CHECKSUM at frame "+frame+"/"+str(end)+"  Address:"+ByteToHex(address_bytes)+"  CHECKSUM:"+ByteToHex(chk.to_bytes(1,byteorder='big'))+" TimeTaken:"+str(tPrint))
-		elif(b == b"\xFF"):
-			print("bytereceive:"+ ByteToHex(b) +"  BAD SECTOR at frame "+frame+"/"+str(end)+"  Address:"+ByteToHex(address_bytes)+"  CHECKSUM:"+ByteToHex(chk.to_bytes(1,byteorder='big'))+" TimeTaken:"+str(tPrint))
-		else:
-			print ("bytereceive:"+ ByteToHex(b) +"  UNKNOWN ERROR at frame "+frame+"/"+str(end)+"  Address:"+ByteToHex(address_bytes)+"  CHECKSUM:"+ByteToHex(chk.to_bytes(1,byteorder='big'))+" TimeTaken:"+str(tPrint))   # WTF?
-		
-		#this delay here is because of the pocketstation, if data is written too fast it's gonna crash
-		time.sleep(0.15)
-	
+		while True:
+			tstart = datetime.now()
+			address_bytes = address.to_bytes(2,byteorder='big') # integer to bytearray(2,bigendian) example 1 --> b'\x00\x01
+			frame = str(address+1)
+			data_block = f.read(frame_size)
+			chk = b''
+			chk = address_bytes[1]^address_bytes[0]^XorElementByteArray(data_block)
+			ser.write(MCW)
+			ser.write(address_bytes[0].to_bytes(1, byteorder='big')) # bytearray is bytes but bytearray[i] is int
+			ser.write(address_bytes[1].to_bytes(1, byteorder='big')) # bytearray is bytes but bytearray[i] is int
+			ser.write(data_block)
+			ser.write(chk.to_bytes(1,byteorder='big'))	
+			b = ser.read(1)
+			tend = datetime.now()
+			tPrint=tend-tstart
+			if(b == b"\x47"):
+				print("bytereceive:"+ ByteToHex(b) +"  OK at frame "+frame+"/"+str(end)+"  Address:"+ByteToHex(address_bytes)+"  CHECKSUM:"+ByteToHex(chk.to_bytes(1,byteorder='big'))+" TimeTaken:"+str(tPrint))
+				passed += 1
+				break
+			elif(b == b"\x4E"):
+				print("bytereceive:"+ ByteToHex(b) +"  BAD CHECKSUM at frame "+frame+"/"+str(end)+"  Address:"+ByteToHex(address_bytes)+"  CHECKSUM:"+ByteToHex(chk.to_bytes(1,byteorder='big'))+" TimeTaken:"+str(tPrint))
+			elif(b == b"\xFF"):
+				print("bytereceive:"+ ByteToHex(b) +"  BAD SECTOR at frame "+frame+"/"+str(end)+"  Address:"+ByteToHex(address_bytes)+"  CHECKSUM:"+ByteToHex(chk.to_bytes(1,byteorder='big'))+" TimeTaken:"+str(tPrint))
+			else:
+				print ("bytereceive:"+ ByteToHex(b) +"  UNKNOWN ERROR at frame "+frame+"/"+str(end)+"  Address:"+ByteToHex(address_bytes)+"  CHECKSUM:"+ByteToHex(chk.to_bytes(1,byteorder='big'))+" TimeTaken:"+str(tPrint))   # WTF?
+			print("retrying frame "+frame+"/"+str(end)+"...\n")
+			time.sleep(0.5)
 	result(passed)
 	
 def memcard_format():
@@ -376,7 +380,7 @@ def result(passed):
 	if(passed == end):
 		print("SUCCESS")
 	else:
-		print(mode + " ERROR: "+str(1024-passed)+" failed\n")
+		print(mode + " ERROR: "+str(end-passed)+" failed\n")
 
 #MAIN VARIABLES
 start = 0
@@ -411,10 +415,10 @@ for opt, arg in opts:
 		file = arg
 		mode = "WRITE"
 	elif opt in ("-c" , "--capacity"):
-		end = arg
+		end = int(arg)
 	elif opt in("-b", "--bitrate"):
 		print("warning: bitrate should not be changed unless necessary")
-		rate = arg
+		rate = int(arg)
 	elif opt in("--psinfo"):
 		mode = "PSINFO"
 	elif opt in("--psbios"):
